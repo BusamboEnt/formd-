@@ -1,0 +1,137 @@
+import { Component, EventEmitter, inject, OnInit, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { Client } from '../../../../core/models/client.model';
+import { ClientService } from '../../../../core/services/client.service';
+
+@Component({
+  selector: 'app-client-search',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatAutocompleteModule,
+    MatProgressSpinnerModule,
+    MatCardModule,
+    MatIconModule,
+  ],
+  template: `
+    <div class="step-content">
+      <h2 class="step-title">Find Client</h2>
+      <p class="step-subtitle">Search by client name or reference number.</p>
+
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Search client</mat-label>
+        <input
+          matInput
+          [formControl]="searchCtrl"
+          [matAutocomplete]="auto"
+          placeholder="e.g. John Doe or REF-2024-001"
+        />
+        <mat-icon matSuffix>search</mat-icon>
+        <mat-autocomplete
+          #auto="matAutocomplete"
+          [displayWith]="displayFn"
+          (optionSelected)="onClientSelected($event.option.value)"
+        >
+          <mat-option *ngFor="let client of results" [value]="client">
+            <div class="option-content">
+              <span class="option-name">{{ client.name }}</span>
+              <span class="option-ref">{{ client.referenceNumber }}</span>
+            </div>
+          </mat-option>
+          <mat-option *ngIf="results.length === 0 && searched" disabled>
+            No clients found
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <mat-card *ngIf="selectedClient" class="client-card" appearance="outlined">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="avatar-icon">person</mat-icon>
+          <mat-card-title>{{ selectedClient.name }}</mat-card-title>
+          <mat-card-subtitle>{{ selectedClient.referenceNumber }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="detail-grid">
+            <div class="detail-item" *ngIf="selectedClient.companyName">
+              <mat-icon>business</mat-icon>
+              <span>{{ selectedClient.companyName }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>location_on</mat-icon>
+              <span>{{ selectedClient.address }}, {{ selectedClient.city }}, {{ selectedClient.postalCode }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>email</mat-icon>
+              <span>{{ selectedClient.email }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>phone</mat-icon>
+              <span>{{ selectedClient.phone }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  `,
+  styles: [`
+    .step-content { padding: 8px 0; }
+    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+    .step-subtitle { margin: 0 0 24px; color: #666; }
+    .search-field { width: 100%; }
+    .option-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .option-name { font-weight: 500; }
+    .option-ref { font-size: 12px; color: #888; }
+    .client-card { margin-top: 20px; }
+    .avatar-icon { font-size: 40px; width: 40px; height: 40px; color: #3f51b5; }
+    .detail-grid { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+    .detail-item { display: flex; align-items: center; gap: 10px; color: #444; }
+    .detail-item mat-icon { color: #3f51b5; font-size: 18px; width: 18px; height: 18px; }
+  `],
+})
+export class ClientSearchComponent implements OnInit {
+  @Output() clientSelected = new EventEmitter<Client | null>();
+
+  private clientService = inject(ClientService);
+
+  searchCtrl = new FormControl('');
+  results: Client[] = [];
+  selectedClient: Client | null = null;
+  searched = false;
+
+  ngOnInit(): void {
+    this.searchCtrl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap((value) => {
+        if (typeof value === 'string' && value.trim().length >= 2) {
+          return this.clientService.searchClients(value.trim());
+        }
+        return of([]);
+      })
+    ).subscribe((clients) => {
+      this.results = clients;
+      this.searched = true;
+    });
+  }
+
+  displayFn(client: Client | string): string {
+    return typeof client === 'object' && client ? client.name : (client as string) ?? '';
+  }
+
+  onClientSelected(client: Client): void {
+    this.selectedClient = client;
+    this.clientSelected.emit(client);
+  }
+}
