@@ -16,12 +16,19 @@ function humanise(name) {
 /**
  * Maps a pdf-lib field to a FieldKind.
  *
- * The name-based promotion of signature and initials fields is a heuristic: a
- * PDF has no notion of "signature field" for our purposes, only a text box, so
- * an imported contract would otherwise present its signature line as somewhere
- * to type. Matching on the name recovers the author's intent often enough to
- * be worth it, and it can misfire — a field genuinely named "design_notes"
- * contains "sign". Anything it gets wrong is correctable in the definition.
+ * A PDF has no notion of a signature field — only a text box — so an imported
+ * contract would otherwise offer its signature line as somewhere to type a
+ * name. Reading the author's intent from the field name recovers it often
+ * enough to be worth doing.
+ *
+ * The order below matters. "date" is tested first because a contract routinely
+ * carries fields named `signed.date`, `date_signed` or `signature_date`: every
+ * one contains "sign", and classifying them as signatures would demand a drawn
+ * image where a date belongs. The more specific signal wins.
+ *
+ * It is still a heuristic and can still be wrong — a field named
+ * `design_notes` contains "sign" — so anything it misreads is correctable in
+ * the definition.
  */
 function classify(field) {
   const type = field.constructor.name;
@@ -30,8 +37,9 @@ function classify(field) {
   if (type === 'PDFCheckBox' || type === 'PDFRadioGroup') return 'checkbox';
 
   if (type === 'PDFTextField') {
-    if (/\binitial/.test(name) || name.includes('initials')) return 'initials';
-    if (name.includes('sign')) return 'signature';
+    if (/date|dob|birth/.test(name)) return 'date';
+    if (/initial/.test(name)) return 'initials';
+    if (/sign/.test(name)) return 'signature';
     try {
       if (typeof field.isMultiline === 'function' && field.isMultiline()) return 'multiline';
     } catch {

@@ -105,7 +105,11 @@ describe('extractFormDefinition', () => {
     });
 
     it('leaves an ordinary text field as text', () => {
-      assert.equal(def.fields.find((f) => f.id === 'agreement_date').kind, 'text');
+      assert.equal(def.fields.find((f) => f.id === 'client.name').kind, 'text');
+    });
+
+    it('reads a date-named field as a date', () => {
+      assert.equal(def.fields.find((f) => f.id === 'agreement_date').kind, 'date');
     });
 
     // Without this an imported contract offers its signature line as a place
@@ -116,6 +120,29 @@ describe('extractFormDefinition', () => {
 
     it('promotes an initials-named text field to initials', () => {
       assert.equal(def.fields.find((f) => f.id === 'page_initials').kind, 'initials');
+    });
+
+    // Found by an end-to-end run, not by unit tests: "signed.date" contains
+    // "sign", so it was classified as a signature and the signing endpoint
+    // then demanded a drawn image where a date belonged. A contract routinely
+    // names a field this way, so the more specific signal has to win.
+    it('reads a date field named "signed.date" as a date, not a signature', async () => {
+      const doc = await PDFDocument.create();
+      const page = doc.addPage([595, 842]);
+      const form = doc.getForm();
+      form.createTextField('signed.date').addToPage(page, { x: 50, y: 50, width: 120, height: 18 });
+      form.createTextField('signature_date').addToPage(page, { x: 50, y: 90, width: 120, height: 18 });
+      form.createTextField('date_of_birth').addToPage(page, { x: 50, y: 130, width: 120, height: 18 });
+      form.createTextField('client.signature').addToPage(page, { x: 50, y: 170, width: 200, height: 50 });
+
+      const d = await extractFormDefinition(Buffer.from(await doc.save()), { filename: 'dates.pdf' });
+      const kind = (id) => d.fields.find((f) => f.id === id).kind;
+
+      assert.equal(kind('signed.date'), 'date');
+      assert.equal(kind('signature_date'), 'date');
+      assert.equal(kind('date_of_birth'), 'date');
+      // A genuine signature field is still promoted.
+      assert.equal(kind('client.signature'), 'signature');
     });
 
     it('humanises field names into labels', () => {

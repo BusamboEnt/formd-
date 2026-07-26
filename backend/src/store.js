@@ -39,7 +39,11 @@ export class Store {
         savedAt  TEXT NOT NULL,
         -- The full submission, including the agreement text that was signed.
         -- Stored verbatim: a record has to prove what was actually agreed to.
-        payload  TEXT NOT NULL
+        payload  TEXT NOT NULL,
+        -- The client's own document with the marks written into it, for
+        -- form-backed records. Null for clause-based ones, which have no
+        -- source document.
+        signedPdf BLOB
       );
 
       CREATE INDEX IF NOT EXISTS idx_agreements_client ON agreements(clientId);
@@ -56,6 +60,20 @@ export class Store {
         pdf        BLOB NOT NULL
       );
     `);
+
+    this.#addColumnIfMissing('agreements', 'signedPdf', 'BLOB');
+  }
+
+  /**
+   * CREATE TABLE IF NOT EXISTS is a no-op on a database that already exists, so
+   * a column added to the statement above never reaches a deployment with data
+   * in it. Existing installs need the ALTER.
+   */
+  #addColumnIfMissing(table, column, type) {
+    const columns = this.db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!columns.some((c) => c.name === column)) {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
   }
 
   searchClients(term) {
@@ -91,13 +109,18 @@ export class Store {
     return this.getClient(c.id);
   }
 
-  saveAgreement(submission) {
+  saveAgreement(submission, signedPdf = null) {
     const id = randomUUID();
     const savedAt = submission.savedAt || new Date().toISOString();
     this.db
-      .prepare('INSERT INTO agreements (id, clientId, savedAt, payload) VALUES (?, ?, ?, ?)')
-      .run(id, submission.client.id, savedAt, JSON.stringify(submission));
+      .prepare('INSERT INTO agreements (id, clientId, savedAt, payload, signedPdf) VALUES (?, ?, ?, ?, ?)')
+      .run(id, submission.client.id, savedAt, JSON.stringify(submission), signedPdf);
     return { id, savedAt };
+  }
+
+  getSignedDocument(id) {
+    const row = this.db.prepare('SELECT signedPdf FROM agreements WHERE id = ?').get(id);
+    return row?.signedPdf ?? undefined;
   }
 
   listAgreements(clientId) {

@@ -4,6 +4,7 @@ import multer from 'multer';
 import { Store } from './store.js';
 import { extractFormDefinition } from './import/extract-pdf.js';
 import { normalizeToPdf, ConversionUnavailableError } from './import/normalize.js';
+import { stampPdf } from './import/stamp.js';
 
 /** Fields without which a stored record cannot prove what was signed. */
 const REQUIRED = ['client', 'agreementTitle', 'agreementVersion', 'agreementClauses', 'signatureDataUrl'];
@@ -136,6 +137,64 @@ export function createApp(store = new Store()) {
       const problem = validateSubmission(req.body);
       if (problem) return res.status(400).json({ error: problem });
       res.status(201).json(store.saveAgreement(req.body));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Signs an imported form: writes the captured values onto the client's own
+   * document and stores the result.
+   *
+   * Distinct from POST /agreements, which records a clause-based agreement and
+   * has no source document to mark up.
+   */
+  app.post('/forms/:id/sign', async (req, res, next) => {
+    try {
+      const definition = store.getForm(req.params.id);
+      if (!definition) return res.status(404).json({ error: 'form not found' });
+
+      const { client, values } = req.body ?? {};
+      if (!client?.id) return res.status(400).json({ error: 'client.id is required' });
+      if (!values || typeof values !== 'object') {
+        return res.status(400).json({ error: 'values is required' });
+      }
+
+      const sourcePdf = store.getFormDocument(req.params.id);
+
+      let signedPdf;
+      try {
+        signedPdf = await stampPdf(sourcePdf, definition, values);
+      } catch (err) {
+        // A missing required field or a malformed signature is the caller's
+        // to fix, not a server fault.
+        return res.status(400).json({ error: err.message });
+      }
+
+      const submission = {
+        client,
+        formDate: new Date().toLocaleDateString('en-ZA'),
+        formDefinitionId: definition.id,
+        formVersion: definition.version,
+        // Cited so a document swapped after signing is detectable.
+        documentSha256: definition.document.sha256,
+        values,
+        savedAt: new Date().toISOString(),
+      };
+
+      const saved = store.saveAgreement(submission, signedPdf);
+      res.status(201).json({ ...saved, documentUrl: `/agreements/${saved.id}/document` });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /** The signed document itself — the client's PDF with the marks in it. */
+  app.get('/agreements/:id/document', (req, res, next) => {
+    try {
+      const pdf = store.getSignedDocument(req.params.id);
+      if (!pdf) return res.status(404).json({ error: 'no signed document for this record' });
+      res.type('application/pdf').send(Buffer.from(pdf));
     } catch (err) {
       next(err);
     }
