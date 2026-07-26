@@ -7,11 +7,13 @@ import {
   OnInit,
   Output,
   ViewChild,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import SignaturePad from 'signature_pad';
+import { FORMD_COPY } from '../../../core/config/formd.copy';
 
 @Component({
   selector: 'app-signature-pad',
@@ -21,9 +23,9 @@ import SignaturePad from 'signature_pad';
     <div class="sig-wrapper">
       <canvas #sigCanvas class="sig-canvas"></canvas>
       <div class="sig-actions">
-        <p class="sig-hint"><mat-icon>edit</mat-icon> Draw your signature above</p>
+        <p class="sig-hint"><mat-icon>edit</mat-icon> {{ copy.signature.hint }}</p>
         <button mat-stroked-button color="warn" type="button" (click)="clear()">
-          Clear Signature
+          {{ copy.signature.clear }}
         </button>
       </div>
     </div>
@@ -69,6 +71,8 @@ import SignaturePad from 'signature_pad';
 export class SignaturePadComponent implements OnInit, OnDestroy {
   @ViewChild('sigCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
   @Output() signatureChange = new EventEmitter<string | null>();
+
+  readonly copy = inject(FORMD_COPY);
 
   private pad!: SignaturePad;
   private firstStroke = true;
@@ -127,7 +131,11 @@ export class SignaturePadComponent implements OnInit, OnDestroy {
     ctx.fillStyle = 'rgba(113,113,122,0.35)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Sign here', (canvas.width / ratio) / 2 * ratio, (canvas.height / ratio) / 2 * ratio);
+    ctx.fillText(
+      this.copy.signature.watermark,
+      (canvas.width / ratio) / 2 * ratio,
+      (canvas.height / ratio) / 2 * ratio,
+    );
     ctx.restore();
   }
 

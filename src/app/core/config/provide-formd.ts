@@ -10,6 +10,15 @@ import {
   FORMD_CLIENT_SOURCE,
   FORMD_SAVE_HANDLER,
 } from './formd.config';
+import {
+  DeepPartial,
+  DEFAULT_BRANDING,
+  FormdBranding,
+  FormdCopy,
+  FORMD_BRANDING,
+  FORMD_COPY,
+  mergeCopy,
+} from './formd.copy';
 
 export interface FormdConfig {
   /** Contract text to present and record. Defaults to the bundled sample. */
@@ -18,6 +27,10 @@ export interface FormdConfig {
   clientSource?: ClientSource;
   /** What happens to a signed agreement. Defaults to writing PNG + JSON locally. */
   saveHandler?: SaveHandler;
+  /** Brand mark and tagline. Partial — unset fields keep their defaults. */
+  branding?: Partial<FormdBranding>;
+  /** User-facing strings. Partial at the group level. */
+  copy?: DeepPartial<FormdCopy>;
 }
 
 /**
@@ -44,5 +57,8 @@ export function provideFormd(config: FormdConfig = {}): EnvironmentProviders {
     config.saveHandler
       ? { provide: FORMD_SAVE_HANDLER, useValue: config.saveHandler }
       : { provide: FORMD_SAVE_HANDLER, useExisting: FormSaveService },
+
+    { provide: FORMD_BRANDING, useValue: { ...DEFAULT_BRANDING, ...config.branding } },
+    { provide: FORMD_COPY, useValue: mergeCopy(config.copy) },
   ]);
 }

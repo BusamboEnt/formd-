@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable, of, throwError } from 'rxjs';
+import { provideHttpClient } from '@angular/common/http';
 import { ClientSearchComponent } from './client-search.component';
-import { FORMD_CLIENT_SOURCE, ClientSource } from '../../../../core/config/formd.config';
+import { ClientSource } from '../../../../core/config/formd.config';
+import { provideFormd } from '../../../../core/config/provide-formd';
 import { Client } from '../../../../core/models/client.model';
 
 const CLIENT: Client = {
@@ -27,7 +29,7 @@ describe('ClientSearchComponent', () => {
     source = new StubSource();
     await TestBed.configureTestingModule({
       imports: [ClientSearchComponent, NoopAnimationsModule],
-      providers: [{ provide: FORMD_CLIENT_SOURCE, useValue: source }],
+      providers: [provideHttpClient(), provideFormd({ clientSource: source })],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ClientSearchComponent);

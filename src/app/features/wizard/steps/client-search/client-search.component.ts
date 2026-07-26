@@ -11,6 +11,7 @@ import { catchError, debounceTime, distinctUntilChanged, switchMap, tap } from '
 import { of } from 'rxjs';
 import { Client } from '../../../../core/models/client.model';
 import { FORMD_CLIENT_SOURCE, toObservable } from '../../../../core/config/formd.config';
+import { FORMD_COPY } from '../../../../core/config/formd.copy';
 
 @Component({
   selector: 'app-client-search',
@@ -27,16 +28,16 @@ import { FORMD_CLIENT_SOURCE, toObservable } from '../../../../core/config/formd
   ],
   template: `
     <div class="step-content">
-      <h2 class="step-title">Find Client</h2>
-      <p class="step-subtitle">Search by client name or reference number.</p>
+      <h2 class="step-title">{{ copy.clientSearch.title }}</h2>
+      <p class="step-subtitle">{{ copy.clientSearch.subtitle }}</p>
 
       <mat-form-field appearance="outline" class="search-field">
-        <mat-label>Search client</mat-label>
+        <mat-label>{{ copy.clientSearch.fieldLabel }}</mat-label>
         <input
           matInput
           [formControl]="searchCtrl"
           [matAutocomplete]="auto"
-          placeholder="e.g. John Doe or REF-2024-001"
+          [placeholder]="copy.clientSearch.placeholder"
         />
         <mat-spinner diameter="20" matSuffix *ngIf="loading"></mat-spinner>
         <mat-icon matSuffix *ngIf="!loading">search</mat-icon>
@@ -54,7 +55,7 @@ import { FORMD_CLIENT_SOURCE, toObservable } from '../../../../core/config/formd
           <mat-option disabled *ngIf="results.length === 0 && searched && !loading && !searchFailed">
             <div class="empty-state">
               <mat-icon>search_off</mat-icon>
-              <span>No clients matched your search</span>
+              <span>{{ copy.clientSearch.noMatches }}</span>
             </div>
           </mat-option>
         </mat-autocomplete>
@@ -63,7 +64,7 @@ import { FORMD_CLIENT_SOURCE, toObservable } from '../../../../core/config/formd
       <!-- A broken lookup must not read as "this client does not exist". -->
       <div class="search-failed" *ngIf="searchFailed">
         <mat-icon>cloud_off</mat-icon>
-        <span>Could not reach the client service. Check the connection and try again.</span>
+        <span>{{ copy.clientSearch.unreachable }}</span>
       </div>
 
       <mat-card *ngIf="selectedClient" class="client-card" appearance="outlined">
@@ -116,6 +117,7 @@ export class ClientSearchComponent implements OnInit {
   @Output() clientSelected = new EventEmitter<Client | null>();
 
   private clientService = inject(FORMD_CLIENT_SOURCE);
+  readonly copy = inject(FORMD_COPY);
 
   searchCtrl = new FormControl('');
   results: Client[] = [];

@@ -2,6 +2,12 @@ import { Injectable } from '@angular/core';
 import { AgreementTemplate } from '../core/models/agreement.model';
 import { SERVICE_AGREEMENT } from '../core/data/service-agreement';
 import { ClientSource, SaveHandler } from '../core/config/formd.config';
+import {
+  DEFAULT_BRANDING,
+  DEFAULT_COPY,
+  FormdBranding,
+  FormdCopy,
+} from '../core/config/formd.copy';
 
 /**
  * Mutable configuration backing the custom element.
@@ -18,4 +24,6 @@ export class FormdRuntime {
   agreement: AgreementTemplate = SERVICE_AGREEMENT;
   clientSource: ClientSource | null = null;
   saveHandler: SaveHandler | null = null;
+  branding: FormdBranding = DEFAULT_BRANDING;
+  copy: FormdCopy = DEFAULT_COPY;
 }

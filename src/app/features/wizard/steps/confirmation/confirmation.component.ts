@@ -21,6 +21,7 @@ import {
   FORMD_SAVE_HANDLER,
   SaveOutcome,
 } from '../../../../core/config/formd.config';
+import { FORMD_BRANDING, FORMD_COPY } from '../../../../core/config/formd.copy';
 
 @Component({
   selector: 'app-confirmation',
@@ -35,14 +36,14 @@ import {
   ],
   template: `
     <div class="step-content">
-      <h2 class="step-title">Review & Save</h2>
-      <p class="step-subtitle">Confirm the details below, then save the signed agreement.</p>
+      <h2 class="step-title">{{ copy.confirmation.title }}</h2>
+      <p class="step-subtitle">{{ copy.confirmation.subtitle }}</p>
 
       <div class="preview-wrapper" #previewEl id="signed-form-preview" *ngIf="client && signatureDataUrl">
         <!-- Compact document preview with signature -->
         <div class="preview-doc">
           <div class="preview-header">
-            <span class="preview-logo">FormD</span>
+            <span class="preview-logo" *ngIf="branding.showInDocument">{{ branding.name }}</span>
             <span class="preview-ref">
               {{ client.referenceNumber }} | {{ today }} | v{{ agreement.version }}
             </span>
@@ -70,8 +71,8 @@ import {
             <div class="sig-block">
               <img [src]="signatureDataUrl" alt="Signature" class="sig-image" />
               <div class="sig-line"></div>
-              <p class="sig-label">{{ client.name }} — Signature</p>
-              <p class="sig-date">Signed: {{ today }}</p>
+              <p class="sig-label">{{ client.name }} — {{ copy.confirmation.signatureLabel }}</p>
+              <p class="sig-date">{{ copy.confirmation.signedOnLabel }} {{ today }}</p>
             </div>
           </div>
         </div>
@@ -85,29 +86,29 @@ import {
           (click)="saveDocuments()"
         >
           <mat-icon>save_alt</mat-icon>
-          {{ saving ? 'Saving…' : 'Save PNG & JSON' }}
+          {{ saving ? copy.confirmation.savingAction : copy.confirmation.saveAction }}
         </button>
         <mat-spinner *ngIf="saving" diameter="24"></mat-spinner>
       </div>
 
       <div class="save-error" *ngIf="saveError">
         <mat-icon>error_outline</mat-icon>
-        <p>Save failed. Please try again or check browser permissions.</p>
+        <p>{{ copy.confirmation.error }}</p>
       </div>
 
       <div class="save-cancelled" *ngIf="saveCancelled">
         <mat-icon>cancel</mat-icon>
-        <p>Save cancelled — nothing was written. Click Save to try again.</p>
+        <p>{{ copy.confirmation.cancelled }}</p>
       </div>
 
       <div class="save-success" *ngIf="saved">
         <mat-icon class="success-icon">check_circle</mat-icon>
-        <p>Agreement saved successfully! Check your selected folder or Downloads.</p>
+        <p>{{ copy.confirmation.success }}</p>
       </div>
 
       <div class="missing-data" *ngIf="!client || !signatureDataUrl">
         <mat-icon>warning</mat-icon>
-        <p>Missing client details or signature. Please go back and complete the previous steps.</p>
+        <p>{{ copy.confirmation.missingData }}</p>
       </div>
     </div>
   `,
@@ -205,6 +206,8 @@ export class ConfirmationComponent implements OnChanges {
   private snackBar = inject(MatSnackBar);
 
   readonly agreement = inject(FORMD_AGREEMENT);
+  readonly copy = inject(FORMD_COPY);
+  readonly branding = inject(FORMD_BRANDING);
 
   today = '';
   saving = false;
@@ -250,11 +253,11 @@ export class ConfirmationComponent implements OnChanges {
         submission,
       });
       if (outcome === 'saved') {
-        this.snackBar.open('Agreement saved successfully!', 'OK', { duration: 4000, panelClass: 'snack-success' });
+        this.snackBar.open(this.copy.confirmation.success, 'OK', { duration: 4000, panelClass: 'snack-success' });
         this.saved = true;
       } else {
         // Dismissed dialog — nothing was written, so do not claim otherwise.
-        this.snackBar.open('Save cancelled — nothing was written to disk.', 'OK', { duration: 5000 });
+        this.snackBar.open(this.copy.confirmation.cancelled, 'OK', { duration: 5000 });
         this.saveCancelled = true;
       }
       this.saveCompleted.emit({ outcome, submission });

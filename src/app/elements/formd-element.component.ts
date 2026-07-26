@@ -12,6 +12,13 @@ import { WizardComponent } from '../features/wizard/wizard.component';
 import { AgreementTemplate } from '../core/models/agreement.model';
 import { FormSubmission } from '../core/models/form-submission.model';
 import { ClientSource, SaveHandler, SaveOutcome } from '../core/config/formd.config';
+import {
+  DeepPartial,
+  DEFAULT_BRANDING,
+  FormdBranding,
+  FormdCopy,
+  mergeCopy,
+} from '../core/config/formd.copy';
 import { FormdRuntime } from './formd-runtime';
 
 /**
@@ -37,6 +44,10 @@ export class FormdElementComponent implements OnChanges {
   @Input() clientSource?: ClientSource;
   /** Receives the signed record. Falls back to writing PNG + JSON locally. */
   @Input() saveHandler?: SaveHandler;
+  /** Brand mark and tagline. Partial — unset fields keep their defaults. */
+  @Input() branding?: Partial<FormdBranding>;
+  /** User-facing strings. Partial at the group level. */
+  @Input() copy?: DeepPartial<FormdCopy>;
 
   /** Emitted as the `saved` DOM event once a record is persisted. */
   @Output() saved = new EventEmitter<FormSubmission>();
@@ -52,6 +63,8 @@ export class FormdElementComponent implements OnChanges {
     if (this.agreement) this.runtime.agreement = this.agreement;
     this.runtime.clientSource = this.clientSource ?? null;
     this.runtime.saveHandler = this.saveHandler ?? null;
+    this.runtime.branding = { ...DEFAULT_BRANDING, ...this.branding };
+    this.runtime.copy = mergeCopy(this.copy);
 
     // Drop and re-create so freshly injected tokens see the new config.
     this.ready = false;

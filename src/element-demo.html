@@ -33,6 +33,15 @@
     customElements.whenDefined('formd-wizard').then(() => {
       const el = document.getElementById('wizard');
 
+      // Branding and copy are partial: unset fields keep their defaults.
+      el.branding = { name: 'ACME', tagline: 'Supply Contracts' };
+      el.copy = {
+        steps: { findClient: 'Customer', reviewForm: 'Terms' },
+        nav: { next: 'Continue' },
+        clientSearch: { title: 'Find Customer', placeholder: 'e.g. Ada or ACME-001' },
+        confirmation: { saveAction: 'Submit Agreement' },
+      };
+
       el.agreement = {
         title: 'SUPPLY AGREEMENT',
         version: '2.1.0',

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, ViewChild } from '@angular/core';
+import { Component, EventEmitter, inject, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,6 +7,7 @@ import { MatCardModule } from '@angular/material/card';
 import { Client } from '../../core/models/client.model';
 import { FormSubmission } from '../../core/models/form-submission.model';
 import { SaveOutcome } from '../../core/config/formd.config';
+import { FORMD_COPY } from '../../core/config/formd.copy';
 import { ClientSearchComponent } from './steps/client-search/client-search.component';
 import { FormPreviewComponent } from './steps/form-preview/form-preview.component';
 import { SignatureStepComponent } from './steps/signature-step/signature-step.component';
@@ -41,7 +42,7 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
         <ng-template matStepperIcon="done"><mat-icon>check</mat-icon></ng-template>
 
         <!-- Step 1: Client Search -->
-        <mat-step [completed]="!!selectedClient" label="Find Client">
+        <mat-step [completed]="!!selectedClient" [label]="copy.steps.findClient">
           <app-client-search
             (clientSelected)="onClientSelected($event)"
           ></app-client-search>
@@ -52,17 +53,17 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
               [disabled]="!selectedClient"
               matStepperNext
             >
-              Next <mat-icon>arrow_forward</mat-icon>
+              {{ copy.nav.next }} <mat-icon>arrow_forward</mat-icon>
             </button>
           </div>
         </mat-step>
 
         <!-- Step 2: Form Preview -->
-        <mat-step [completed]="!!selectedClient" label="Review Form">
+        <mat-step [completed]="!!selectedClient" [label]="copy.steps.reviewForm">
           <app-form-preview [client]="selectedClient"></app-form-preview>
           <div class="step-nav">
             <button mat-stroked-button matStepperPrevious>
-              <mat-icon>arrow_back</mat-icon> Back
+              <mat-icon>arrow_back</mat-icon> {{ copy.nav.back }}
             </button>
             <button
               mat-raised-button
@@ -70,20 +71,20 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
               [disabled]="!selectedClient"
               matStepperNext
             >
-              Proceed to Sign <mat-icon>arrow_forward</mat-icon>
+              {{ copy.nav.proceedToSign }} <mat-icon>arrow_forward</mat-icon>
             </button>
           </div>
         </mat-step>
 
         <!-- Step 3: Signature -->
-        <mat-step [completed]="!!signatureDataUrl" label="Sign">
+        <mat-step [completed]="!!signatureDataUrl" [label]="copy.steps.sign">
           <app-signature-step
             [client]="selectedClient"
             (signatureChange)="onSignatureChange($event)"
           ></app-signature-step>
           <div class="step-nav">
             <button mat-stroked-button matStepperPrevious>
-              <mat-icon>arrow_back</mat-icon> Back
+              <mat-icon>arrow_back</mat-icon> {{ copy.nav.back }}
             </button>
             <button
               mat-raised-button
@@ -91,13 +92,13 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
               [disabled]="!signatureDataUrl"
               matStepperNext
             >
-              Review & Save <mat-icon>arrow_forward</mat-icon>
+              {{ copy.nav.reviewAndSave }} <mat-icon>arrow_forward</mat-icon>
             </button>
           </div>
         </mat-step>
 
         <!-- Step 4: Confirmation -->
-        <mat-step label="Save">
+        <mat-step [label]="copy.steps.save">
           <app-confirmation
             [client]="selectedClient"
             [signatureDataUrl]="signatureDataUrl"
@@ -105,10 +106,10 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
           ></app-confirmation>
           <div class="step-nav">
             <button mat-stroked-button matStepperPrevious>
-              <mat-icon>arrow_back</mat-icon> Back
+              <mat-icon>arrow_back</mat-icon> {{ copy.nav.back }}
             </button>
             <button mat-raised-button color="accent" (click)="reset(stepper)">
-              <mat-icon>refresh</mat-icon> New Agreement
+              <mat-icon>refresh</mat-icon> {{ copy.nav.newAgreement }}
             </button>
           </div>
         </mat-step>
@@ -143,6 +144,8 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
   `],
 })
 export class WizardComponent {
+  readonly copy = inject(FORMD_COPY);
+
   @ViewChild('stepper') stepper!: MatStepper;
   @ViewChild(ClientSearchComponent) clientSearchRef!: ClientSearchComponent;
 

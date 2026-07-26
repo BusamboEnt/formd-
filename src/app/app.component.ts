@@ -4,6 +4,7 @@ import { AsyncPipe, NgIf } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { LoadingService } from './core/services/loading.service';
+import { FORMD_BRANDING } from './core/config/formd.copy';
 
 @Component({
   selector: 'app-root',
@@ -11,8 +12,8 @@ import { LoadingService } from './core/services/loading.service';
   imports: [RouterOutlet, MatToolbarModule, MatProgressBarModule, AsyncPipe, NgIf],
   template: `
     <mat-toolbar class="app-toolbar">
-      <span class="toolbar-logo">FormD</span>
-      <span class="toolbar-subtitle">Digital Signing System</span>
+      <span class="toolbar-logo">{{ branding.name }}</span>
+      <span class="toolbar-subtitle" *ngIf="branding.tagline">{{ branding.tagline }}</span>
     </mat-toolbar>
     <mat-progress-bar
       *ngIf="loading.loading$ | async"
@@ -37,4 +38,5 @@ import { LoadingService } from './core/services/loading.service';
 })
 export class AppComponent {
   protected loading = inject(LoadingService);
+  readonly branding = inject(FORMD_BRANDING);
 }

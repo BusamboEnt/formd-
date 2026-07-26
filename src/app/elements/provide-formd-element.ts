@@ -6,6 +6,7 @@ import {
   FORMD_CLIENT_SOURCE,
   FORMD_SAVE_HANDLER,
 } from '../core/config/formd.config';
+import { FORMD_BRANDING, FORMD_COPY } from '../core/config/formd.copy';
 import { FormdRuntime } from './formd-runtime';
 
 /**
@@ -31,6 +32,16 @@ export function provideFormdElement(): EnvironmentProviders {
       provide: FORMD_SAVE_HANDLER,
       useFactory: (rt: FormdRuntime, fallback: FormSaveService) => rt.saveHandler ?? fallback,
       deps: [FormdRuntime, FormSaveService],
+    },
+    {
+      provide: FORMD_BRANDING,
+      useFactory: (rt: FormdRuntime) => rt.branding,
+      deps: [FormdRuntime],
+    },
+    {
+      provide: FORMD_COPY,
+      useFactory: (rt: FormdRuntime) => rt.copy,
+      deps: [FormdRuntime],
     },
   ]);
 }

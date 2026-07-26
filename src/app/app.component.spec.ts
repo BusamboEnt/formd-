@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { LoadingService } from './core/services/loading.service';
+import { provideFormd } from './core/config/provide-formd';
 
 // Deliberately no NO_ERRORS_SCHEMA. The previous version of this spec used it,
 // which silently swallowed the fact that AppComponent used *ngIf without
@@ -14,7 +16,7 @@ describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent, NoopAnimationsModule],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideFormd()],
     }).compileComponents();
     loading = TestBed.inject(LoadingService);
   });
@@ -62,5 +64,40 @@ describe('AppComponent', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('mat-progress-bar')).toBeNull();
+  });
+
+});
+
+// Proves an override reaches the rendered DOM, not merely the token.
+describe('AppComponent branding overrides', () => {
+  async function render(branding: Parameters<typeof provideFormd>[0]) {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [AppComponent, NoopAnimationsModule],
+      providers: [provideRouter([]), provideHttpClient(), provideFormd(branding)],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('renders a supplied brand name', async () => {
+    const el = await render({ branding: { name: 'ACME' } });
+    expect(el.querySelector('.toolbar-logo')?.textContent).toContain('ACME');
+  });
+
+  it('renders a supplied tagline', async () => {
+    const el = await render({ branding: { name: 'ACME', tagline: 'Supply Contracts' } });
+    expect(el.querySelector('.toolbar-subtitle')?.textContent).toContain('Supply Contracts');
+  });
+
+  it('keeps the default tagline when only the name is overridden', async () => {
+    const el = await render({ branding: { name: 'ACME' } });
+    expect(el.querySelector('.toolbar-subtitle')?.textContent).toContain('Digital Signing System');
+  });
+
+  it('drops the tagline element entirely when set empty', async () => {
+    const el = await render({ branding: { tagline: '' } });
+    expect(el.querySelector('.toolbar-subtitle')).toBeNull();
   });
 });

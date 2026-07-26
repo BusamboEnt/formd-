@@ -2,6 +2,7 @@ import { Component, Input, OnChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Client } from '../../../../core/models/client.model';
 import { FORMD_AGREEMENT } from '../../../../core/config/formd.config';
+import { FORMD_BRANDING, FORMD_COPY, fill } from '../../../../core/config/formd.copy';
 
 @Component({
   selector: 'app-form-preview',
@@ -9,26 +10,23 @@ import { FORMD_AGREEMENT } from '../../../../core/config/formd.config';
   imports: [CommonModule],
   template: `
     <div class="step-content">
-      <h2 class="step-title">Review Agreement</h2>
-      <p class="step-subtitle">Please review the service agreement below before signing.</p>
+      <h2 class="step-title">{{ copy.formPreview.title }}</h2>
+      <p class="step-subtitle">{{ copy.formPreview.subtitle }}</p>
 
       <div class="form-document" id="form-document" *ngIf="client">
         <div class="doc-header">
-          <div class="doc-logo">FormD</div>
+          <div class="doc-logo" *ngIf="branding.showInDocument">{{ branding.name }}</div>
           <div class="doc-meta">
-            <div><strong>Reference:</strong> {{ client.referenceNumber }}</div>
-            <div><strong>Date:</strong> {{ today }}</div>
+            <div><strong>{{ copy.formPreview.referenceLabel }}</strong> {{ client.referenceNumber }}</div>
+            <div><strong>{{ copy.formPreview.dateLabel }}</strong> {{ today }}</div>
           </div>
         </div>
 
         <h1 class="doc-title">{{ agreement.title }}</h1>
 
         <section class="doc-section">
-          <h3>Parties</h3>
-          <p>
-            This Service Agreement ("Agreement") is entered into as of <strong>{{ today }}</strong>
-            between <strong>{{ agreement.provider }}</strong> ("Service Provider") and:
-          </p>
+          <h3>{{ copy.formPreview.partiesHeading }}</h3>
+          <p>{{ preambleText }}</p>
           <table class="client-table">
             <tr>
               <td><strong>Full Name:</strong></td>
@@ -68,7 +66,7 @@ import { FORMD_AGREEMENT } from '../../../../core/config/formd.config';
       </div>
 
       <div *ngIf="!client" class="no-client">
-        <p>No client selected. Please go back and select a client.</p>
+        <p>{{ copy.formPreview.noClient }}</p>
       </div>
     </div>
   `,
@@ -142,12 +140,21 @@ export class FormPreviewComponent implements OnChanges {
   @Input() client: Client | null = null;
 
   readonly agreement = inject(FORMD_AGREEMENT);
+  readonly copy = inject(FORMD_COPY);
+  readonly branding = inject(FORMD_BRANDING);
 
   today = new Date().toLocaleDateString('en-ZA', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+
+  get preambleText(): string {
+    return fill(this.copy.formPreview.preamble, {
+      date: this.today,
+      provider: this.agreement.provider,
+    });
+  }
 
   ngOnChanges(): void {
     this.today = new Date().toLocaleDateString('en-ZA', {
