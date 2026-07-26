@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import html2canvas from 'html2canvas';
 import { FormSubmission } from '../models/form-submission.model';
 
 /** Whether bytes actually reached disk. 'cancelled' means the user dismissed
@@ -14,7 +13,16 @@ const RASTERIZE_TIMEOUT_MS = 20_000;
 
 @Injectable({ providedIn: 'root' })
 export class FormSaveService {
+  /** html2canvas is ~200KB and is only needed when someone actually saves, so
+   *  it is pulled in on demand rather than shipped in the initial bundle. */
+  private async loadHtml2Canvas() {
+    const mod: any = await import('html2canvas');
+    return (mod.default ?? mod) as typeof import('html2canvas').default;
+  }
+
   async savePng(formElement: HTMLElement, filename: string): Promise<SaveOutcome> {
+    const html2canvas = await this.loadHtml2Canvas();
+
     const canvas = await this.withTimeout(
       html2canvas(formElement, {
         scale: 2,
