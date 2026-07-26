@@ -23,7 +23,7 @@ import { Client } from '../../../../core/models/client.model';
             Draw your signature in the box below using your finger or stylus.
           </p>
           <app-signature-pad
-            style="height: 180px; display: block;"
+            style="display: block; width: 100%;"
             (signatureChange)="onSignatureChange($event)"
           ></app-signature-pad>
         </mat-card-content>

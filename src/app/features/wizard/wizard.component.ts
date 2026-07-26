@@ -34,6 +34,10 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
         orientation="horizontal"
         animationDuration="300"
       >
+        <!-- Completed steps should read as done, not as "editable" -->
+        <ng-template matStepperIcon="edit"><mat-icon>check</mat-icon></ng-template>
+        <ng-template matStepperIcon="done"><mat-icon>check</mat-icon></ng-template>
+
         <!-- Step 1: Client Search -->
         <mat-step [completed]="!!selectedClient" label="Find Client">
           <app-client-search

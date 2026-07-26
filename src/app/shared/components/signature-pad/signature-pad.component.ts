@@ -20,8 +20,8 @@ import SignaturePad from 'signature_pad';
   template: `
     <div class="sig-wrapper">
       <canvas #sigCanvas class="sig-canvas"></canvas>
-      <p class="sig-hint"><mat-icon>edit</mat-icon> Draw your signature above</p>
       <div class="sig-actions">
+        <p class="sig-hint"><mat-icon>edit</mat-icon> Draw your signature above</p>
         <button mat-stroked-button color="warn" type="button" (click)="clear()">
           Clear Signature
         </button>
@@ -32,8 +32,15 @@ import SignaturePad from 'signature_pad';
     .sig-wrapper {
       display: flex;
       flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+    .sig-actions {
+      display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
     }
     .sig-canvas {
       border: 1px dashed var(--border);
@@ -42,8 +49,8 @@ import SignaturePad from 'signature_pad';
       touch-action: none;
       background: var(--background);
       width: 100%;
-      max-width: 600px;
       min-height: 200px;
+      display: block;
     }
     .sig-canvas.signing {
       border: 1px solid var(--ring);

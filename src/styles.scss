@@ -192,6 +192,12 @@ body {
   min-height: 38px !important;
   font-size: 14px !important;
 }
+/* MDC shrink-wraps the option's text wrapper, which collapses any
+   full-width flex layout inside it (e.g. name left / reference right). */
+.mat-mdc-option .mdc-list-item__primary-text {
+  width: 100% !important;
+  display: block !important;
+}
 .mat-mdc-option:hover:not(.mdc-list-item--disabled) { background: var(--accent) !important; }
 
 /* Stepper */
@@ -202,7 +208,16 @@ body {
   color: var(--muted-foreground) !important;
 }
 .mat-step-label.mat-step-label-active { color: var(--foreground) !important; }
-.mat-step-header:hover { background: var(--accent) !important; border-radius: var(--radius-sm); }
+.mat-step-header { border-radius: var(--radius-sm); }
+.mat-step-header:hover:not([aria-selected='true']) { background: var(--accent) !important; }
+/* Material paints a square focus/ripple block on the selected header,
+   which reads as a stray grey rectangle against the flat theme. */
+.mat-step-header.cdk-keyboard-focused,
+.mat-step-header.cdk-program-focused,
+.mat-step-header[aria-selected='true'] { background: transparent !important; }
+.mat-step-header .mat-ripple,
+.mat-step-header .mat-step-header-ripple { display: none !important; }
+.mat-step-header:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .mat-step-header .mat-step-icon {
   background: var(--secondary) !important;
   color: var(--muted-foreground) !important;
