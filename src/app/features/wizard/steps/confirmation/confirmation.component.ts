@@ -4,12 +4,14 @@ import {
   Input,
   OnChanges,
   ViewChild,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Client } from '../../../../core/models/client.model';
 import { FormSubmission } from '../../../../core/models/form-submission.model';
 import { FormSaveService } from '../../../../core/services/form-save.service';
@@ -23,6 +25,7 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatSnackBarModule,
   ],
   template: `
     <div class="step-content">
@@ -70,6 +73,11 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
           {{ saving ? 'Saving…' : 'Save PNG & JSON' }}
         </button>
         <mat-spinner *ngIf="saving" diameter="24"></mat-spinner>
+      </div>
+
+      <div class="save-error" *ngIf="saveError">
+        <mat-icon>error_outline</mat-icon>
+        <p>Save failed. Please try again or check browser permissions.</p>
       </div>
 
       <div class="save-success" *ngIf="saved">
@@ -154,6 +162,14 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       margin-bottom: 16px;
     }
 
+    .save-error {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #b71c1c;
+      margin-top: 8px;
+    }
+
     .save-success {
       display: flex;
       align-items: center;
@@ -175,14 +191,18 @@ export class ConfirmationComponent implements OnChanges {
   @Input() signatureDataUrl: string | null = null;
   @ViewChild('previewEl') previewEl!: ElementRef<HTMLElement>;
 
-  private formSave = new FormSaveService();
+  private formSave = inject(FormSaveService);
+  private snackBar = inject(MatSnackBar);
 
   today = '';
   saving = false;
   saved = false;
+  saveError = false;
 
   ngOnChanges(): void {
     this.saved = false;
+    this.saving = false;
+    this.saveError = false;
     this.today = new Date().toLocaleDateString('en-ZA', {
       year: 'numeric',
       month: 'long',
@@ -207,9 +227,11 @@ export class ConfirmationComponent implements OnChanges {
 
     try {
       await this.formSave.saveAll(this.previewEl.nativeElement, submission);
+      this.snackBar.open('Agreement saved successfully!', 'OK', { duration: 4000, panelClass: 'snack-success' });
       this.saved = true;
     } catch (err) {
       console.error('Save failed', err);
+      this.saveError = true;
     } finally {
       this.saving = false;
     }

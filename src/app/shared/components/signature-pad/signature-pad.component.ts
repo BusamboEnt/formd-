@@ -10,15 +10,17 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import SignaturePad from 'signature_pad';
 
 @Component({
   selector: 'app-signature-pad',
   standalone: true,
-  imports: [CommonModule, MatButtonModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule],
   template: `
     <div class="sig-wrapper">
       <canvas #sigCanvas class="sig-canvas"></canvas>
+      <p class="sig-hint"><mat-icon>edit</mat-icon> Draw your signature above</p>
       <div class="sig-actions">
         <button mat-stroked-button color="warn" type="button" (click)="clear()">
           Clear Signature
@@ -41,6 +43,19 @@ import SignaturePad from 'signature_pad';
       background: #fff;
       width: 100%;
       max-width: 600px;
+      min-height: 200px;
+    }
+    .sig-canvas.signing {
+      border: 2px solid #3f51b5;
+      background: #fafafa;
+    }
+    .sig-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #888;
+      font-size: 13px;
+      margin: 4px 0 0;
     }
   `],
 })
@@ -49,6 +64,7 @@ export class SignaturePadComponent implements OnInit, OnDestroy {
   @Output() signatureChange = new EventEmitter<string | null>();
 
   private pad!: SignaturePad;
+  private firstStroke = true;
 
   ngOnInit(): void {
     this.initPad();
@@ -61,12 +77,22 @@ export class SignaturePadComponent implements OnInit, OnDestroy {
   private initPad(): void {
     const canvas = this.canvasRef.nativeElement;
     this.resizeCanvas(canvas);
+    this.drawWatermark(canvas);
     this.pad = new SignaturePad(canvas, {
       minWidth: 1,
       maxWidth: 3,
       penColor: '#000000',
     });
+    this.pad.addEventListener('beginStroke', () => {
+      if (this.firstStroke) {
+        const ctx = canvas.getContext('2d')!;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.firstStroke = false;
+      }
+      canvas.classList.add('signing');
+    });
     this.pad.addEventListener('endStroke', () => {
+      canvas.classList.remove('signing');
       this.signatureChange.emit(this.pad.isEmpty() ? null : this.pad.toDataURL('image/png'));
     });
   }
@@ -86,8 +112,22 @@ export class SignaturePadComponent implements OnInit, OnDestroy {
     canvas.getContext('2d')!.scale(ratio, ratio);
   }
 
+  private drawWatermark(canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext('2d')!;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    ctx.save();
+    ctx.font = `${16 * ratio}px Arial`;
+    ctx.fillStyle = 'rgba(180,180,180,0.5)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Sign here', (canvas.width / ratio) / 2 * ratio, (canvas.height / ratio) / 2 * ratio);
+    ctx.restore();
+  }
+
   clear(): void {
     this.pad.clear();
+    this.firstStroke = true;
+    this.drawWatermark(this.canvasRef.nativeElement);
     this.signatureChange.emit(null);
   }
 
