@@ -38,7 +38,9 @@ import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
         <div class="preview-doc">
           <div class="preview-header">
             <span class="preview-logo">FormD</span>
-            <span class="preview-ref">{{ client.referenceNumber }} | {{ today }}</span>
+            <span class="preview-ref">
+              {{ client.referenceNumber }} | {{ today }} | v{{ agreement.version }}
+            </span>
           </div>
           <h2 class="preview-title">{{ agreement.title }}</h2>
           <table class="preview-table">
@@ -48,6 +50,16 @@ import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
             <tr><td>Email:</td><td>{{ client.email }}</td></tr>
             <tr><td>Phone:</td><td>{{ client.phone }}</td></tr>
           </table>
+          <!-- The rasterized PNG is the human-readable record, so it must
+               show the terms it says were agreed to, not just the
+               acknowledgement. -->
+          <div class="preview-clauses">
+            <section class="preview-clause" *ngFor="let clause of agreement.clauses">
+              <h4>{{ clause.heading }}</h4>
+              <p>{{ clause.body }}</p>
+            </section>
+          </div>
+
           <p class="preview-terms">{{ agreement.acknowledgement }}</p>
           <div class="sig-section">
             <div class="sig-block">
@@ -126,19 +138,16 @@ import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
 
     .preview-logo { font-family: Inter, sans-serif; font-size: 16px; font-weight: 800; color: var(--foreground); letter-spacing: 2px; }
     .preview-ref { font-size: 12px; color: var(--muted-foreground); }
-
-    .preview-title {
-      text-align: center;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-decoration: underline;
-      margin: 0 0 16px;
-    }
+    .preview-title { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 2px; text-decoration: underline; margin: 0 0 16px; }
 
     .preview-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     .preview-table td { padding: 4px 8px; }
     .preview-table td:first-child { width: 100px; color: var(--muted-foreground); }
+
+    .preview-clauses { margin-bottom: 16px; }
+    .preview-clause { margin-bottom: 10px; }
+    .preview-clause h4 { font-size: 12px; font-weight: 700; margin: 0 0 2px; }
+    .preview-clause p { font-size: 11px; line-height: 1.45; margin: 0; }
 
     .preview-terms {
       font-size: 12px;
@@ -165,36 +174,16 @@ import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
       margin-bottom: 16px;
     }
 
-    .save-error {
+    .save-error, .save-cancelled, .save-success, .missing-data {
       display: flex;
       align-items: center;
       gap: 10px;
-      color: var(--destructive);
       margin-top: 8px;
     }
-
-    .save-cancelled {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--muted-foreground);
-      margin-top: 8px;
-    }
-
-    .save-success {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--success);
-    }
+    .save-error, .missing-data { color: var(--destructive); }
+    .save-cancelled { color: var(--muted-foreground); }
+    .save-success { color: var(--success); }
     .success-icon { font-size: 28px; width: 28px; height: 28px; }
-
-    .missing-data {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--destructive);
-    }
   `],
 })
 export class ConfirmationComponent implements OnChanges {

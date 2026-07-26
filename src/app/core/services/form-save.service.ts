@@ -7,14 +7,23 @@ import { FormSubmission } from '../models/form-submission.model';
  *  success, or a client walks away believing a contract was filed. */
 export type SaveOutcome = 'saved' | 'cancelled';
 
+/** html2canvas waits on external resources with no internal timeout, so a
+ *  single unreachable asset leaves the Save button spinning forever with no
+ *  way out. Fail loudly instead. */
+const RASTERIZE_TIMEOUT_MS = 20_000;
+
 @Injectable({ providedIn: 'root' })
 export class FormSaveService {
   async savePng(formElement: HTMLElement, filename: string): Promise<SaveOutcome> {
-    const canvas = await html2canvas(formElement, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-    });
+    const canvas = await this.withTimeout(
+      html2canvas(formElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      }),
+      RASTERIZE_TIMEOUT_MS,
+      'Rendering the agreement image timed out.'
+    );
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), 'image/png')
@@ -46,6 +55,18 @@ export class FormSaveService {
       return 'cancelled';
     }
     return this.saveJson(submission, filename);
+  }
+
+  private async withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout>;
+    const guard = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+    try {
+      return await Promise.race([work, guard]);
+    } finally {
+      clearTimeout(timer!);
+    }
   }
 
   private async saveBlob(blob: Blob, filename: string, mimeType: string): Promise<SaveOutcome> {
