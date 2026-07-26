@@ -14,8 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Client } from '../../../../core/models/client.model';
 import { FormSubmission } from '../../../../core/models/form-submission.model';
-import { FormSaveService } from '../../../../core/services/form-save.service';
-import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
+import { FORMD_AGREEMENT, FORMD_SAVE_HANDLER } from '../../../../core/config/formd.config';
 
 @Component({
   selector: 'app-confirmation',
@@ -191,10 +190,10 @@ export class ConfirmationComponent implements OnChanges {
   @Input() signatureDataUrl: string | null = null;
   @ViewChild('previewEl') previewEl!: ElementRef<HTMLElement>;
 
-  private formSave = inject(FormSaveService);
+  private saveHandler = inject(FORMD_SAVE_HANDLER);
   private snackBar = inject(MatSnackBar);
 
-  readonly agreement = SERVICE_AGREEMENT;
+  readonly agreement = inject(FORMD_AGREEMENT);
 
   today = '';
   saving = false;
@@ -235,7 +234,10 @@ export class ConfirmationComponent implements OnChanges {
     };
 
     try {
-      const outcome = await this.formSave.saveAll(this.previewEl.nativeElement, submission);
+      const outcome = await this.saveHandler.save({
+        element: this.previewEl.nativeElement,
+        submission,
+      });
       if (outcome === 'saved') {
         this.snackBar.open('Agreement saved successfully!', 'OK', { duration: 4000, panelClass: 'snack-success' });
         this.saved = true;

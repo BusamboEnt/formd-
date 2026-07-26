@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, finalize, delay } from 'rxjs/operators';
 import { Client } from '../models/client.model';
+import { ClientSource } from '../config/formd.config';
 import { LoadingService } from './loading.service';
 import { environment } from '../../../environments/environment';
 
@@ -62,8 +63,13 @@ const MOCK_CLIENTS: Client[] = [
   },
 ];
 
+/**
+ * Default client source: mock records in development, a REST endpoint
+ * otherwise. Applications embedding FormD can replace this wholesale via
+ * `provideFormd({ clientSource })` — see core/config/provide-formd.ts.
+ */
 @Injectable({ providedIn: 'root' })
-export class ClientService {
+export class ClientService implements ClientSource {
   private http = inject(HttpClient);
   private loading = inject(LoadingService);
 

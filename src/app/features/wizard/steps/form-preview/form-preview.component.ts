@@ -1,7 +1,7 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Client } from '../../../../core/models/client.model';
-import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
+import { FORMD_AGREEMENT } from '../../../../core/config/formd.config';
 
 @Component({
   selector: 'app-form-preview',
@@ -141,7 +141,7 @@ import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
 export class FormPreviewComponent implements OnChanges {
   @Input() client: Client | null = null;
 
-  readonly agreement = SERVICE_AGREEMENT;
+  readonly agreement = inject(FORMD_AGREEMENT);
 
   today = new Date().toLocaleDateString('en-ZA', {
     year: 'numeric',

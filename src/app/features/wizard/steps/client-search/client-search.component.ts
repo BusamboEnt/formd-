@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { debounceTime, distinctUntilChanged, switchMap, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { Client } from '../../../../core/models/client.model';
-import { ClientService } from '../../../../core/services/client.service';
+import { FORMD_CLIENT_SOURCE } from '../../../../core/config/formd.config';
 
 @Component({
   selector: 'app-client-search',
@@ -108,7 +108,7 @@ import { ClientService } from '../../../../core/services/client.service';
 export class ClientSearchComponent implements OnInit {
   @Output() clientSelected = new EventEmitter<Client | null>();
 
-  private clientService = inject(ClientService);
+  private clientService = inject(FORMD_CLIENT_SOURCE);
 
   searchCtrl = new FormControl('');
   results: Client[] = [];

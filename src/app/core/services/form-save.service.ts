@@ -1,18 +1,27 @@
 import { Injectable } from '@angular/core';
 import { FormSubmission } from '../models/form-submission.model';
+import { SaveContext, SaveHandler, SaveOutcome } from '../config/formd.config';
 
-/** Whether bytes actually reached disk. 'cancelled' means the user dismissed
- *  the save dialog and nothing was written — it must never be reported as
- *  success, or a client walks away believing a contract was filed. */
-export type SaveOutcome = 'saved' | 'cancelled';
+export type { SaveOutcome };
 
 /** html2canvas waits on external resources with no internal timeout, so a
  *  single unreachable asset leaves the Save button spinning forever with no
  *  way out. Fail loudly instead. */
 const RASTERIZE_TIMEOUT_MS = 20_000;
 
+/**
+ * Default save handler: writes a PNG and a JSON to local disk.
+ *
+ * Applications embedding FormD can replace this wholesale via
+ * `provideFormd({ saveHandler })` — see core/config/provide-formd.ts.
+ */
 @Injectable({ providedIn: 'root' })
-export class FormSaveService {
+export class FormSaveService implements SaveHandler {
+  /** SaveHandler entry point. */
+  save({ element, submission }: SaveContext): Promise<SaveOutcome> {
+    return this.saveAll(element, submission);
+  }
+
   /** html2canvas is ~200KB and is only needed when someone actually saves, so
    *  it is pulled in on demand rather than shipped in the initial bundle. */
   private async loadHtml2Canvas() {

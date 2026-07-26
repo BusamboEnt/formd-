@@ -3,6 +3,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { WizardComponent } from './wizard.component';
 import { Client } from '../../core/models/client.model';
+import { provideFormd } from '../../core/config/provide-formd';
 
 const CLIENT_A: Client = {
   id: '1', name: 'John Doe', address: '12 Main Street', city: 'Johannesburg',
@@ -23,7 +24,7 @@ describe('WizardComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [WizardComponent, NoopAnimationsModule],
-      providers: [provideHttpClient()],
+      providers: [provideHttpClient(), provideFormd()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(WizardComponent);
