@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, finalize, delay } from 'rxjs/operators';
 import { Client } from '../models/client.model';
@@ -73,7 +73,23 @@ export class ClientService implements ClientSource {
   private http = inject(HttpClient);
   private loading = inject(LoadingService);
 
+  /**
+   * Fails fast when the app is built to use a real API but none was
+   * configured. Previously this shipped a placeholder URL, so every search
+   * quietly returned nothing and looked like an empty client list.
+   */
+  private assertConfigured(): void {
+    if (!environment.useMockData && !environment.apiBaseUrl) {
+      throw new Error(
+        'FormD: apiBaseUrl is not configured. Set it in the environment file ' +
+          'for this build, supply your own clientSource via provideFormd(), ' +
+          'or enable useMockData for a demo build.'
+      );
+    }
+  }
+
   searchClients(query: string): Observable<Client[]> {
+    this.assertConfigured();
     this.loading.show();
 
     if (environment.useMockData) {
@@ -91,23 +107,29 @@ export class ClientService implements ClientSource {
       );
     }
 
+    // Errors propagate. Mapping them to an empty array here made an
+    // unreachable API indistinguishable from a client who does not exist.
     return this.http
       .get<Client[]>(`${environment.apiBaseUrl}/clients`, {
         params: { search: query },
       })
-      .pipe(
-        catchError(() => of([])),
-        finalize(() => this.loading.hide())
-      );
+      .pipe(finalize(() => this.loading.hide()));
   }
 
   getClientById(id: string): Observable<Client | undefined> {
+    this.assertConfigured();
+
     if (environment.useMockData) {
       return of(MOCK_CLIENTS.find((c) => c.id === id));
     }
 
-    return this.http
-      .get<Client>(`${environment.apiBaseUrl}/clients/${id}`)
-      .pipe(catchError(() => of(undefined)));
+    // A 404 genuinely means "no such client"; anything else is a fault the
+    // caller needs to see rather than read as an absent record.
+    return this.http.get<Client>(`${environment.apiBaseUrl}/clients/${id}`).pipe(
+      catchError((err: HttpErrorResponse) => {
+        if (err.status === 404) return of(undefined);
+        throw err;
+      })
+    );
   }
 }

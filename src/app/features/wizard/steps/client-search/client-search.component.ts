@@ -7,7 +7,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { debounceTime, distinctUntilChanged, switchMap, tap } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged, switchMap, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { Client } from '../../../../core/models/client.model';
 import { FORMD_CLIENT_SOURCE } from '../../../../core/config/formd.config';
@@ -51,7 +51,7 @@ import { FORMD_CLIENT_SOURCE } from '../../../../core/config/formd.config';
               <span class="option-ref">{{ client.referenceNumber }}</span>
             </div>
           </mat-option>
-          <mat-option disabled *ngIf="results.length === 0 && searched && !loading">
+          <mat-option disabled *ngIf="results.length === 0 && searched && !loading && !searchFailed">
             <div class="empty-state">
               <mat-icon>search_off</mat-icon>
               <span>No clients matched your search</span>
@@ -59,6 +59,12 @@ import { FORMD_CLIENT_SOURCE } from '../../../../core/config/formd.config';
           </mat-option>
         </mat-autocomplete>
       </mat-form-field>
+
+      <!-- A broken lookup must not read as "this client does not exist". -->
+      <div class="search-failed" *ngIf="searchFailed">
+        <mat-icon>cloud_off</mat-icon>
+        <span>Could not reach the client service. Check the connection and try again.</span>
+      </div>
 
       <mat-card *ngIf="selectedClient" class="client-card" appearance="outlined">
         <mat-card-header>
@@ -103,6 +109,7 @@ import { FORMD_CLIENT_SOURCE } from '../../../../core/config/formd.config';
     .detail-item { display: flex; align-items: center; gap: 10px; color: var(--foreground); }
     .detail-item mat-icon { color: var(--muted-foreground); font-size: 18px; width: 18px; height: 18px; }
     .empty-state { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); }
+    .search-failed { display: flex; align-items: center; gap: 8px; color: var(--destructive); font-size: 14px; margin-top: 4px; }
   `],
 })
 export class ClientSearchComponent implements OnInit {
@@ -115,15 +122,24 @@ export class ClientSearchComponent implements OnInit {
   selectedClient: Client | null = null;
   searched = false;
   loading = false;
+  searchFailed = false;
 
   ngOnInit(): void {
     this.searchCtrl.valueChanges.pipe(
       debounceTime(300),
       distinctUntilChanged(),
-      tap(() => { this.loading = true; this.searched = false; }),
+      tap(() => { this.loading = true; this.searched = false; this.searchFailed = false; }),
       switchMap((value) => {
         if (typeof value === 'string' && value.trim().length >= 2) {
-          return this.clientService.searchClients(value.trim());
+          // Caught here rather than upstream so one failed request does not
+          // terminate the stream and leave the field permanently dead.
+          return this.clientService.searchClients(value.trim()).pipe(
+            catchError((err) => {
+              console.error('FormD: client search failed', err);
+              this.searchFailed = true;
+              return of([]);
+            })
+          );
         }
         return of([]);
       })
@@ -140,6 +156,7 @@ export class ClientSearchComponent implements OnInit {
     this.selectedClient = null;
     this.searched = false;
     this.loading = false;
+    this.searchFailed = false;
     this.clientSelected.emit(null);
   }
 
