@@ -19,6 +19,8 @@
     <code>&lt;formd-wizard&gt;</code> from plain HTML — custom agreement, wired to a
     backend via <code>FormD.createHttpClientSource</code>. No Angular in this page.
     Pass <code>?api=&lt;url&gt;</code> to retarget, or <code>?api=none</code> for inline objects.
+    Pass <code>?form=&lt;id&gt;</code> to fill and sign an imported document instead of
+    the clause agreement.
   </div>
 
   <formd-wizard id="wizard"></formd-wizard>
@@ -77,6 +79,18 @@
 
       el.addEventListener('saved', (e) => log('saved event for ' + e.detail.client.name));
       el.addEventListener('cancelled', () => log('cancelled event — nothing written'));
+
+      // An imported document takes precedence over the clause agreement above:
+      // the element renders that PDF and signs it in place. apiBaseUrl is
+      // separate from clientSource because the document is fetched by the
+      // element itself, not through the configured source.
+      const formId = new URLSearchParams(location.search).get('form');
+      if (formId && api !== 'none') {
+        el.apiBaseUrl = api;
+        el.formId = formId;
+        log('configured against ' + api + ' — filling form ' + formId);
+        return;
+      }
 
       log('configured against ' + api);
     });

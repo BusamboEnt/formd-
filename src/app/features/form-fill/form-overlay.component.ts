@@ -351,8 +351,23 @@ export class FormOverlayComponent implements OnChanges, AfterViewInit {
   private emit(): void {
     setTimeout(() => {
       this.valuesChange.emit(this.values);
-      const required = (this.definition?.fields ?? []).filter((f) => f.required);
-      this.completeChange.emit(required.every((f) => this.isFilled(f)));
+      this.completeChange.emit(this.isComplete());
     });
+  }
+
+  /**
+   * Whether the form may be submitted.
+   *
+   * Mirrors what stampPdf enforces, so the button disables instead of the
+   * backend rejecting a click. Most source documents set no required flags at
+   * all, which makes the first test vacuously true — the signature test is
+   * what actually stops an unsigned agreement being saved.
+   */
+  private isComplete(): boolean {
+    const fields = this.definition?.fields ?? [];
+    if (!fields.filter((f) => f.required).every((f) => this.isFilled(f))) return false;
+
+    const signatures = fields.filter((f) => f.kind === 'signature' || f.kind === 'initials');
+    return !signatures.length || signatures.some((f) => this.isFilled(f));
   }
 }

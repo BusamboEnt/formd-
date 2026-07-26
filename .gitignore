@@ -40,3 +40,8 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Backend runtime state. store.js defaults to ./data/formd.db relative to the
+# working directory, so running the server from the repo root writes here —
+# this is a live database of signed agreements, not a fixture.
+/data

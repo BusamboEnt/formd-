@@ -149,6 +149,30 @@ describe('extractFormDefinition', () => {
       assert.equal(def.fields.find((f) => f.id === 'client.name').label, 'Client Name');
       assert.equal(def.fields.find((f) => f.id === 'agreement_date').label, 'Agreement Date');
     });
+
+    // The flag was dropped entirely, which silently disabled every downstream
+    // required-field check — both stampPdf's and the overlay's Sign button.
+    it('carries a required flag for every field', () => {
+      for (const field of def.fields) {
+        assert.equal(typeof field.required, 'boolean', `${field.id} should carry required`);
+      }
+    });
+
+    it("reports the document's own required flags", async () => {
+      const doc = await PDFDocument.create();
+      const page = doc.addPage([595, 842]);
+      const form = doc.getForm();
+      const must = form.createTextField('client.name');
+      must.addToPage(page, { x: 60, y: 700, width: 200, height: 20 });
+      must.enableRequired();
+      form.createTextField('client.note').addToPage(page, { x: 60, y: 650, width: 200, height: 20 });
+
+      const extracted = await extractFormDefinition(Buffer.from(await doc.save()), {
+        filename: 'flags.pdf',
+      });
+      assert.equal(extracted.fields.find((f) => f.id === 'client.name').required, true);
+      assert.equal(extracted.fields.find((f) => f.id === 'client.note').required, false);
+    });
   });
 
   describe('a document with no field definitions', () => {

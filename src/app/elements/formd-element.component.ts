@@ -5,6 +5,8 @@ import {
   Input,
   OnChanges,
   Output,
+  ViewChild,
+  ViewContainerRef,
   inject,
 } from '@angular/core';
 import { NgIf } from '@angular/common';
@@ -34,7 +36,15 @@ import { FormdRuntime } from './formd-runtime';
   standalone: true,
   imports: [NgIf, WizardComponent],
   template: `
-    <app-wizard *ngIf="ready" (saveCompleted)="onSaveCompleted($event)"></app-wizard>
+    <ng-container *ngIf="ready">
+      <!-- A form id selects the document-backed flow: render the client's own
+           PDF and sign it in place. Without one, the clause wizard. -->
+      <ng-container #formHost></ng-container>
+      <app-wizard
+        *ngIf="!formId"
+        (saveCompleted)="onSaveCompleted($event)"
+      ></app-wizard>
+    </ng-container>
   `,
 })
 export class FormdElementComponent implements OnChanges {
@@ -48,16 +58,26 @@ export class FormdElementComponent implements OnChanges {
   @Input() branding?: Partial<FormdBranding>;
   /** User-facing strings. Partial at the group level. */
   @Input() copy?: DeepPartial<FormdCopy>;
+  /**
+   * Id of an imported form. Set it to fill and sign that document instead of
+   * presenting the clause agreement.
+   */
+  @Input() formId?: string;
+  /** Backend holding the form, implementing backend/openapi.yaml. */
+  @Input() apiBaseUrl = '';
 
   /** Emitted as the `saved` DOM event once a record is persisted. */
   @Output() saved = new EventEmitter<FormSubmission>();
   /** Emitted as the `cancelled` DOM event when a save was abandoned. */
   @Output() cancelled = new EventEmitter<FormSubmission>();
 
+  @ViewChild('formHost', { read: ViewContainerRef }) formHost?: ViewContainerRef;
+
   private runtime = inject(FormdRuntime);
   private cdr = inject(ChangeDetectorRef);
 
   ready = false;
+  private mountedFormId?: string;
 
   ngOnChanges(): void {
     if (this.agreement) this.runtime.agreement = this.agreement;
@@ -68,8 +88,33 @@ export class FormdElementComponent implements OnChanges {
 
     // Drop and re-create so freshly injected tokens see the new config.
     this.ready = false;
+    this.mountedFormId = undefined;
     this.cdr.detectChanges();
     this.ready = true;
+    this.cdr.detectChanges();
+
+    void this.mountFormFill();
+  }
+
+  /**
+   * Creates the document-backed flow on demand.
+   *
+   * Imported dynamically for the same reason the app shell does it: this pulls
+   * in pdf.js and the overlay, which a host only presenting the clause
+   * agreement should not download.
+   */
+  private async mountFormFill(): Promise<void> {
+    if (!this.formId || !this.formHost) return;
+    if (this.mountedFormId === this.formId) return;
+
+    this.mountedFormId = this.formId;
+    this.formHost.clear();
+
+    const { FormFillComponent } = await import('../features/form-fill/form-fill.component');
+    const ref = this.formHost.createComponent(FormFillComponent);
+    ref.setInput('formId', this.formId);
+    ref.setInput('apiBaseUrl', this.apiBaseUrl);
+    this.cdr.markForCheck();
   }
 
   onSaveCompleted({ outcome, submission }: { outcome: SaveOutcome; submission: FormSubmission }): void {

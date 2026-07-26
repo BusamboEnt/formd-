@@ -53,6 +53,23 @@ export async function stampPdf(pdfBuffer, definition, values = {}) {
     throw new Error(`Missing required field(s): ${missingRequired.join(', ')}`);
   }
 
+  // A record of a signed agreement that carries no signature is meaningless,
+  // and the per-field `required` flags cannot be relied on to prevent it —
+  // they come from the source document, and most PDFs never set them. So the
+  // invariant is enforced here instead of being delegated to the author.
+  //
+  // Stated as "at least one", not "every signature field", because a document
+  // may legitimately carry an optional second signature (a co-signer, a
+  // witness) that would otherwise block signing whenever it went unused.
+  const signatureFields = (definition.fields ?? []).filter(
+    (f) => f.kind === 'signature' || f.kind === 'initials'
+  );
+  if (signatureFields.length && signatureFields.every((f) => isBlank(values[f.id]))) {
+    throw new Error(
+      `This document must be signed: ${signatureFields.map((f) => f.id).join(' or ')}`
+    );
+  }
+
   const form = doc.getForm();
   const acroFields = new Map(form.getFields().map((f) => [f.getName(), f]));
   /** Fields whose value the AcroForm itself will render. */

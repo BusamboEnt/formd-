@@ -142,10 +142,13 @@ describe('stampPdf', () => {
 
   it('embeds a signature supplied as a data URL', async () => {
     const withSig = await stampPdf(source, definition, VALUES);
-    const withoutSig = await stampPdf(source, definition, {
-      'client.name': 'John Doe',
-      'terms.accepted': true,
-    });
+    // Compared against a definition with no signature field at all, rather
+    // than against the same definition left unsigned — that is now refused.
+    const withoutSig = await stampPdf(
+      source,
+      { ...definition, fields: definition.fields.filter((f) => f.kind !== 'signature') },
+      { 'client.name': 'John Doe', 'terms.accepted': true }
+    );
     // The embedded image is extra content in the file.
     assert.ok(withSig.length > withoutSig.length);
   });
@@ -158,7 +161,43 @@ describe('stampPdf', () => {
   });
 
   it('skips blank optional fields without complaining', async () => {
-    await assert.doesNotReject(() => stampPdf(source, definition, {}));
+    await assert.doesNotReject(() =>
+      stampPdf(source, definition, { 'client.signature': PNG_4x2 })
+    );
+  });
+
+  // The defect this guards against: extractFormDefinition emitted no `required`
+  // flags at all, so the check above passed vacuously and a completed agreement
+  // could be saved with the signature box empty — which is the one thing the
+  // document exists to capture.
+  it('refuses to stamp a signature field left blank', async () => {
+    await assert.rejects(
+      () => stampPdf(source, definition, { 'client.name': 'John Doe', 'terms.accepted': true }),
+      /must be signed: client\.signature/
+    );
+  });
+
+  it('accepts a document that has no signature field to begin with', async () => {
+    const unsignable = {
+      ...definition,
+      fields: definition.fields.filter((f) => f.kind !== 'signature'),
+    };
+    await assert.doesNotReject(() => stampPdf(source, unsignable, { 'client.name': 'John Doe' }));
+  });
+
+  // A second signature box is a co-signer or a witness, not a second
+  // obligation — one signature is what makes the document signed.
+  it('accepts one signature when the document offers two', async () => {
+    const twoSigs = {
+      ...definition,
+      fields: [
+        ...definition.fields,
+        { ...definition.fields.find((f) => f.kind === 'signature'), id: 'witness.signature' },
+      ],
+    };
+    await assert.doesNotReject(() =>
+      stampPdf(source, twoSigs, { 'client.signature': PNG_4x2 })
+    );
   });
 
   it('refuses to stamp when a required field is blank', async () => {

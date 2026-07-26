@@ -79,6 +79,11 @@ export async function extractFormDefinition(pdfBuffer, { filename = 'document.pd
         id: field.getName(),
         kind: classify(field),
         label: humanise(field.getName()),
+        // The document's own flag. Dropping it silently disabled every
+        // required-field check downstream — both the overlay's Sign button
+        // gate and stampPdf's rejection read this and nothing else, so a
+        // definition that never carried it made both vacuous.
+        required: field.isRequired(),
         rect: {
           page: pageIndex < 0 ? 0 : pageIndex,
           x: r.x,
