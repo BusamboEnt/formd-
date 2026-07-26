@@ -1,15 +1,17 @@
 import { Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
 import { AsyncPipe, NgIf } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { LoadingService } from './core/services/loading.service';
 import { FORMD_BRANDING } from './core/config/formd.copy';
+import { WizardComponent } from './features/wizard/wizard.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, MatToolbarModule, MatProgressBarModule, AsyncPipe, NgIf],
+  // The app has a single screen, so the wizard is rendered directly rather than
+  // through a router outlet — that keeps @angular/router out of the bundle.
+  imports: [WizardComponent, MatToolbarModule, MatProgressBarModule, AsyncPipe, NgIf],
   template: `
     <mat-toolbar class="app-toolbar">
       <span class="toolbar-logo">{{ branding.name }}</span>
@@ -21,7 +23,7 @@ import { FORMD_BRANDING } from './core/config/formd.copy';
       class="global-loader"
     ></mat-progress-bar>
     <main class="app-main">
-      <router-outlet></router-outlet>
+      <app-wizard></app-wizard>
     </main>
   `,
   styles: [`

@@ -1,6 +1,8 @@
 import { createApplication } from '@angular/platform-browser';
 import { createCustomElement } from '@angular/elements';
-import { provideAnimations } from '@angular/platform-browser/animations';
+// Async variant: the animations module is loaded lazily on first use instead of
+// being pulled into the initial bundle (~62 kB raw off the entry point).
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideHttpClient } from '@angular/common/http';
 import { FormdElementComponent } from './app/elements/formd-element.component';
 import { provideFormdElement } from './app/elements/provide-formd-element';
@@ -33,7 +35,7 @@ import {
 
 (async () => {
   const app = await createApplication({
-    providers: [provideAnimations(), provideHttpClient(), provideFormdElement()],
+    providers: [provideAnimationsAsync(), provideHttpClient(), provideFormdElement()],
   });
 
   const element = createCustomElement(FormdElementComponent, { injector: app.injector });

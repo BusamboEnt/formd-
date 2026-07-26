@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app.component';
@@ -16,7 +15,7 @@ describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent, NoopAnimationsModule],
-      providers: [provideRouter([]), provideHttpClient(), provideFormd()],
+      providers: [provideHttpClient(),provideFormd()],
     }).compileComponents();
     loading = TestBed.inject(LoadingService);
   });
@@ -33,10 +32,10 @@ describe('AppComponent', () => {
     expect(el.querySelector('.toolbar-logo')?.textContent).toContain('FormD');
   });
 
-  it('contains a router outlet', () => {
+  it('renders the wizard directly', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).toBeTruthy();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-wizard')).toBeTruthy();
   });
 
   it('hides the progress bar while idle', () => {
@@ -74,7 +73,7 @@ describe('AppComponent branding overrides', () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [AppComponent, NoopAnimationsModule],
-      providers: [provideRouter([]), provideHttpClient(), provideFormd(branding)],
+      providers: [provideHttpClient(),provideFormd(branding)],
     }).compileComponents();
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();

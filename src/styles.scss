@@ -117,7 +117,31 @@ $theme: mat.define-light-theme((
   density: 0,
 ));
 
-@include mat.all-component-themes($theme);
+/* ---------------------------------------------------------------
+   Per-component themes (NOT mat.all-component-themes).
+   `all-component-themes` emits theme CSS for every Angular Material
+   component — tabs, chips, lists, slide-toggles, tables, datepicker
+   and so on — none of which this kiosk renders. Theming only the
+   components actually used keeps the shipped stylesheet small, which
+   matters because this app is served offline / over slow links.
+   `mat.core-theme` covers the shared primitives (ripple, elevation
+   classes, option + optgroup — the latter is what styles the
+   autocomplete panel's mat-option rows).
+   If you add a new Material component, add its theme mixin here too,
+   otherwise it will render unthemed.
+   --------------------------------------------------------------- */
+@include mat.core-theme($theme);
+@include mat.button-theme($theme);
+@include mat.card-theme($theme);
+@include mat.form-field-theme($theme);
+@include mat.input-theme($theme);
+@include mat.autocomplete-theme($theme);
+@include mat.icon-theme($theme);
+@include mat.toolbar-theme($theme);
+@include mat.stepper-theme($theme);
+@include mat.progress-bar-theme($theme);
+@include mat.progress-spinner-theme($theme);
+@include mat.snack-bar-theme($theme);
 
 /* ---------------------------------------------------------------
    Base
