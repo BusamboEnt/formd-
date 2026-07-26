@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import { Store } from './store.js';
+import { extractFormDefinition } from './import/extract-pdf.js';
+import { normalizeToPdf, ConversionUnavailableError } from './import/normalize.js';
 
 /** Fields without which a stored record cannot prove what was signed. */
 const REQUIRED = ['client', 'agreementTitle', 'agreementVersion', 'agreementClauses', 'signatureDataUrl'];
@@ -34,7 +37,79 @@ export function createApp(store = new Store()) {
   // Signature data URLs make these payloads large.
   app.use(express.json({ limit: '10mb' }));
 
+  // Signature data URLs and scanned PDFs are both large.
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+  /**
+   * Digitises an uploaded PDF or .docx into a FormDefinition.
+   *
+   * A PDF carrying an AcroForm needs no further work — its own field
+   * coordinates are extracted. Anything else imports successfully with zero
+   * fields and an `origin.note` saying so, because "no fields found" is a
+   * legitimate outcome to be told about, not an error to fail on.
+   */
+  app.post('/forms/import', upload.single('file'), async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded. Send multipart field "file".' });
+      }
+
+      let normalized;
+      try {
+        normalized = await normalizeToPdf(req.file.buffer, req.file.originalname);
+      } catch (err) {
+        if (err instanceof ConversionUnavailableError) {
+          // The request is valid; this deployment cannot serve it.
+          return res.status(501).json({ error: err.message });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+
+      const definition = await extractFormDefinition(normalized.pdf, {
+        filename: req.file.originalname,
+      });
+      if (normalized.converted) {
+        definition.origin.source = 'converted';
+      }
+      definition.document.url = `/forms/${definition.id}/document`;
+
+      store.saveForm(definition, normalized.pdf);
+      res.status(201).json(definition);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get('/forms', (_req, res, next) => {
+    try {
+      res.json(store.listForms());
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get('/forms/:id', (req, res, next) => {
+    try {
+      const form = store.getForm(req.params.id);
+      if (!form) return res.status(404).json({ error: 'form not found' });
+      res.json(form);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // The exact bytes the fields were positioned against.
+  app.get('/forms/:id/document', (req, res, next) => {
+    try {
+      const pdf = store.getFormDocument(req.params.id);
+      if (!pdf) return res.status(404).json({ error: 'form not found' });
+      res.type('application/pdf').send(Buffer.from(pdf));
+    } catch (err) {
+      next(err);
+    }
+  });
 
   app.get('/clients', (req, res, next) => {
     try {

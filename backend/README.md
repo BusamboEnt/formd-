@@ -12,13 +12,17 @@ Any service exposing these routes works. Swap this out whenever you like.
 
 ## Routes
 
-| Method | Path             | Purpose                                        |
-| ------ | ---------------- | ---------------------------------------------- |
-| GET    | `/health`        | Liveness probe                                 |
-| GET    | `/clients`       | Search — backs `clientSource.searchClients`    |
-| GET    | `/clients/:id`   | Fetch one — backs `clientSource.getClientById` |
-| POST   | `/agreements`    | Store a signed record — backs `saveHandler`    |
-| GET    | `/agreements`    | Retrieve stored records (not used by the widget) |
+| Method | Path                   | Purpose                                        |
+| ------ | ---------------------- | ---------------------------------------------- |
+| GET    | `/health`              | Liveness probe                                 |
+| GET    | `/clients`             | Search — backs `clientSource.searchClients`    |
+| GET    | `/clients/:id`         | Fetch one — backs `clientSource.getClientById` |
+| POST   | `/agreements`          | Store a signed record — backs `saveHandler`    |
+| GET    | `/agreements`          | Retrieve stored records (not used by the widget) |
+| POST   | `/forms/import`        | Digitise an uploaded PDF or .docx              |
+| GET    | `/forms`               | List imported forms                            |
+| GET    | `/forms/:id`           | Fetch one form definition                      |
+| GET    | `/forms/:id/document`  | The pinned PDF its fields are positioned against |
 
 Two rules the widget depends on:
 
@@ -32,6 +36,38 @@ Two rules the widget depends on:
 `signatureDataUrl` or no `agreementVersion`. A stored record has to show what
 was actually agreed to, so one that cannot is refused rather than kept in a
 state that looks valid later.
+
+## Importing existing forms
+
+`POST /forms/import` takes a PDF or .docx and returns a form definition whose
+fields are positioned on the document.
+
+```bash
+curl -F file=@supply-agreement.pdf http://localhost:8080/forms/import
+```
+
+How much you get back depends entirely on the source:
+
+| Source | Result |
+| --- | --- |
+| PDF built as an interactive form (AcroForm) | Every field extracted with the original author's coordinates. Nothing to place by hand. |
+| PDF that was never a form | Imports fine, **zero fields**, `origin.note` says so. Fields must be placed manually. |
+| `.docx` | Converted to PDF, then as above — a Word file has no field definitions to recover. |
+
+Text fields whose names contain "sign" or "initial" are promoted to signature
+and initials fields. It is a heuristic and it can misfire — a field named
+`design_notes` contains "sign" — but without it an imported contract offers its
+signature line as somewhere to type a name. Correct anything it gets wrong in
+the definition.
+
+A `.docx` is converted **once**, at import, and that PDF becomes the document of
+record. Field coordinates only mean something against a fixed layout, and a Word
+file reflows with fonts and page size; re-deriving it later would move the page
+under fields already placed on it.
+
+Conversion needs LibreOffice on the server (the Dockerfile installs
+`libreoffice-writer`). Without it, `.docx` uploads answer **501** with a message
+naming the fix, and PDF uploads are unaffected.
 
 ## Run locally
 

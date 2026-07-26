@@ -82,6 +82,111 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /forms/import:
+    post:
+      summary: Digitise an uploaded document into a form definition
+      description: |
+        Accepts a PDF or .docx and returns a `FormDefinition` whose fields are
+        positioned against the document.
+
+        A PDF carrying an AcroForm needs no further work: its own field
+        rectangles are extracted, so nothing is placed by hand. Anything else
+        — a document that was never an interactive form, or a converted .docx —
+        imports successfully with **zero fields** and an `origin.note`
+        explaining that fields must be placed manually. That is a normal
+        outcome to be reported, not an error.
+
+        A .docx is converted to PDF once at import, and that PDF becomes the
+        document of record: field coordinates only mean something against a
+        fixed layout, and a Word file reflows.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: A .pdf or .docx, up to 20 MB.
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '400':
+          description: No file sent, or an unsupported file type
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '501':
+          description: |
+            The document requires conversion and this deployment cannot perform
+            it (LibreOffice absent). The request was valid; the server cannot
+            serve it. The message names the fix.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms:
+    get:
+      summary: List imported forms
+      responses:
+        '200':
+          description: Form definitions, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FormDefinition' }
+
+  /forms/{id}:
+    get:
+      summary: Fetch one form definition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The definition
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '404':
+          description: No such form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms/{id}/document:
+    get:
+      summary: Fetch the pinned PDF a form's fields are positioned against
+      description: |
+        The exact bytes the coordinates refer to. Served rather than linked
+        elsewhere because a document swapped underneath a definition would move
+        every field silently; `document.sha256` lets a client detect that.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          description: No such form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /agreements:
     post:
       summary: Store a signed agreement
@@ -184,6 +289,85 @@ components:
           properties:
             id: { type: string }
         - $ref: '#/components/schemas/FormSubmission'
+
+    FieldRect:
+      type: object
+      required: [page, x, y, width, height]
+      description: |
+        PDF user space (1/72"). **The origin is the bottom-left of the page**,
+        which is the PDF convention — a renderer working top-down converts once,
+        at the edge.
+      properties:
+        page: { type: integer, description: 0-based page index }
+        x: { type: number }
+        y: { type: number, description: Distance from the bottom of the page }
+        width: { type: number }
+        height: { type: number }
+
+    FormField:
+      type: object
+      required: [id, kind, label, rect]
+      properties:
+        id:
+          type: string
+          description: |
+            Stable key a captured value is filed under. Renaming it orphans
+            previously collected data — an identifier, not a label.
+        kind:
+          type: string
+          enum: [text, multiline, date, checkbox, signature, initials]
+        label: { type: string }
+        rect: { $ref: '#/components/schemas/FieldRect' }
+        required: { type: boolean }
+        bindTo:
+          type: string
+          description: Pre-fill from the client record, e.g. `name`.
+        maxLength: { type: integer }
+        defaultValue: { type: string }
+
+    FormDefinition:
+      type: object
+      required: [id, title, version, document, fields, origin]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        version: { type: string }
+        document:
+          type: object
+          required: [url, filename, contentType, pages]
+          properties:
+            url: { type: string, example: /forms/abc123/document }
+            filename: { type: string }
+            contentType: { type: string, enum: [application/pdf] }
+            pages:
+              type: array
+              items:
+                type: object
+                properties:
+                  width: { type: number }
+                  height: { type: number }
+            sha256:
+              type: string
+              description: |
+                SHA-256 of the PDF bytes. A signed record cites this, so a
+                document swapped after signing is detectable rather than silent.
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/FormField' }
+        origin:
+          type: object
+          required: [source]
+          description: |
+            How the definition came to exist. Kept because it predicts field
+            quality: `acroform` fields carry the original author's coordinates;
+            `converted` and `authored` ones were placed by us.
+          properties:
+            source: { type: string, enum: [acroform, converted, authored] }
+            originalFilename: { type: string }
+            importedAt: { type: string, format: date-time }
+            note:
+              type: string
+              description: Set when the source had no field definitions to extract.
 
     Error:
       type: object

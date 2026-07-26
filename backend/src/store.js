@@ -43,6 +43,18 @@ export class Store {
       );
 
       CREATE INDEX IF NOT EXISTS idx_agreements_client ON agreements(clientId);
+
+      CREATE TABLE IF NOT EXISTS forms (
+        id         TEXT PRIMARY KEY,
+        importedAt TEXT NOT NULL,
+        -- The FormDefinition, including field positions.
+        definition TEXT NOT NULL,
+        -- The pinned PDF the fields are positioned against. Stored rather than
+        -- referenced because the coordinates are meaningless without these
+        -- exact bytes, and a file swapped underneath them would move fields
+        -- silently.
+        pdf        BLOB NOT NULL
+      );
     `);
   }
 
@@ -93,6 +105,30 @@ export class Store {
       ? this.db.prepare('SELECT * FROM agreements WHERE clientId = ? ORDER BY savedAt DESC').all(clientId)
       : this.db.prepare('SELECT * FROM agreements ORDER BY savedAt DESC').all();
     return rows.map((r) => ({ id: r.id, ...JSON.parse(r.payload) }));
+  }
+
+  saveForm(definition, pdfBuffer) {
+    this.db
+      .prepare('INSERT INTO forms (id, importedAt, definition, pdf) VALUES (?, ?, ?, ?)')
+      .run(definition.id, new Date().toISOString(), JSON.stringify(definition), pdfBuffer);
+    return definition;
+  }
+
+  getForm(id) {
+    const row = this.db.prepare('SELECT definition FROM forms WHERE id = ?').get(id);
+    return row ? JSON.parse(row.definition) : undefined;
+  }
+
+  getFormDocument(id) {
+    const row = this.db.prepare('SELECT pdf FROM forms WHERE id = ?').get(id);
+    return row ? row.pdf : undefined;
+  }
+
+  listForms() {
+    return this.db
+      .prepare('SELECT definition FROM forms ORDER BY importedAt DESC')
+      .all()
+      .map((r) => JSON.parse(r.definition));
   }
 
   close() {
