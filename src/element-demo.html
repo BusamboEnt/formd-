@@ -16,8 +16,9 @@
 </head>
 <body>
   <div class="banner">
-    <code>&lt;formd-wizard&gt;</code> configured from plain HTML — custom agreement,
-    custom client source, custom save handler. No Angular in this page.
+    <code>&lt;formd-wizard&gt;</code> from plain HTML — custom agreement, wired to a
+    backend via <code>FormD.createHttpClientSource</code>. No Angular in this page.
+    Pass <code>?api=&lt;url&gt;</code> to retarget, or <code>?api=none</code> for inline objects.
   </div>
 
   <formd-wizard id="wizard"></formd-wizard>
@@ -43,44 +44,32 @@
         acknowledgement: 'I confirm I have read and accept the supply terms above.',
       };
 
-      // A host-supplied client source — this is where a real app would call
-      // its own CRM or database.
-      const CLIENTS = [
-        { id: 'a1', name: 'Ada Lovelace', address: '1 Analytical Way', city: 'London',
-          postalCode: 'EC1', email: 'ada@example.com', phone: '+44 20 0000 0001',
-          referenceNumber: 'ACME-001', companyName: 'Analytical Engines Ltd' },
-        { id: 'a2', name: 'Grace Hopper', address: '2 Compiler Road', city: 'Arlington',
-          postalCode: '22201', email: 'grace@example.com', phone: '+1 703 000 0002',
-          referenceNumber: 'ACME-002' },
-      ];
-      el.clientSource = {
-        searchClients: (q) => {
-          const t = q.toLowerCase();
-          const hits = CLIENTS.filter(c =>
-            c.name.toLowerCase().includes(t) || c.referenceNumber.toLowerCase().includes(t));
-          return Promise.resolve(hits);
-        },
-        getClientById: (id) => Promise.resolve(CLIENTS.find(c => c.id === id)),
-      };
+      // Point at a backend implementing backend/openapi.yaml. Pass
+      // ?api=<url> to target a deployed instance instead of a local one.
+      const api = new URLSearchParams(location.search).get('api') || 'http://localhost:8080';
 
-      // A host-supplied save handler — a real app would POST this instead.
-      el.saveHandler = {
-        save: ({ submission }) => {
-          log('saveHandler received record:\n' + JSON.stringify({
-            client: submission.client.name,
-            agreement: submission.agreementTitle,
-            version: submission.agreementVersion,
-            clauses: submission.agreementClauses.map(c => c.heading),
-            signatureBytes: submission.signatureDataUrl.length,
-          }, null, 2));
-          return Promise.resolve('saved');
-        },
-      };
+      if (api === 'none') {
+        // Fallback: inline objects, showing the seam without a backend.
+        const CLIENTS = [
+          { id: 'a1', name: 'Ada Lovelace', address: '1 Analytical Way', city: 'London',
+            postalCode: 'EC1', email: 'ada@example.com', phone: '+44 20 0000 0001',
+            referenceNumber: 'ACME-001', companyName: 'Analytical Engines Ltd' },
+        ];
+        el.clientSource = {
+          searchClients: (q) => Promise.resolve(
+            CLIENTS.filter(c => c.name.toLowerCase().includes(q.toLowerCase()))),
+          getClientById: (id) => Promise.resolve(CLIENTS.find(c => c.id === id)),
+        };
+        el.saveHandler = { save: () => Promise.resolve('saved') };
+      } else {
+        el.clientSource = FormD.createHttpClientSource({ baseUrl: api });
+        el.saveHandler  = FormD.createHttpSaveHandler({ baseUrl: api });
+      }
 
       el.addEventListener('saved', (e) => log('saved event for ' + e.detail.client.name));
       el.addEventListener('cancelled', () => log('cancelled event — nothing written'));
 
-      log('configured. search "ada" or "grace".');
+      log('configured against ' + api);
     });
   </script>
 </body>

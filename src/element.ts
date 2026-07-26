@@ -4,6 +4,10 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { FormdElementComponent } from './app/elements/formd-element.component';
 import { provideFormdElement } from './app/elements/provide-formd-element';
+import {
+  createHttpClientSource,
+  createHttpSaveHandler,
+} from './app/core/adapters/http-client-source';
 
 /**
  * Entry point for the framework-agnostic build.
@@ -18,6 +22,15 @@ import { provideFormdElement } from './app/elements/provide-formd-element';
  *   el.saveHandler  = { save: ({ submission }) => api.post('/agreements', submission) };
  *   el.addEventListener('saved', e => console.log(e.detail));
  */
+/**
+ * Helpers for hosts wiring the element to a backend implementing
+ * backend/openapi.yaml, so they do not hand-write fetch calls:
+ *
+ *   el.clientSource = FormD.createHttpClientSource({ baseUrl: 'https://api.example.com' });
+ *   el.saveHandler  = FormD.createHttpSaveHandler({ baseUrl: 'https://api.example.com' });
+ */
+(window as any).FormD = { createHttpClientSource, createHttpSaveHandler };
+
 (async () => {
   const app = await createApplication({
     providers: [provideAnimations(), provideHttpClient(), provideFormdElement()],

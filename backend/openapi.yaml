@@ -1,0 +1,192 @@
+openapi: 3.0.3
+info:
+  title: FormD Backend Contract
+  version: 1.0.0
+  description: |
+    The contract a backend must satisfy for the FormD signing widget to talk to
+    it. The reference implementation in this directory is one way to satisfy it;
+    any service exposing these routes works.
+
+    Two of the three routes back the widget's `clientSource`. The third receives
+    signed records from its `saveHandler`. A backend may implement only the
+    client routes and let the widget keep saving locally.
+
+servers:
+  - url: http://localhost:8080
+    description: Local
+  - url: https://{app}.up.railway.app
+    description: Railway
+    variables:
+      app: { default: your-formd-backend }
+
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /clients:
+    get:
+      summary: Search clients
+      description: |
+        Backs `clientSource.searchClients`. Matches on name, reference number
+        and company name. Returns an empty array when nothing matches — an
+        empty result means "no such client", never "the lookup failed". Faults
+        must be signalled with a 5xx so the widget can distinguish them.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+          description: Free-text term. Omitted or empty returns all clients.
+      responses:
+        '200':
+          description: Matching clients, possibly none
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Client' }
+        '500':
+          description: Lookup failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /clients/{id}:
+    get:
+      summary: Fetch one client
+      description: Backs `clientSource.getClientById`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The client
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '404':
+          description: No such client. Distinct from a fault.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /agreements:
+    post:
+      summary: Store a signed agreement
+      description: |
+        Backs `saveHandler.save`. The body is the complete record: the client,
+        the full agreement text that was presented, the agreement version, and
+        the signature. It is stored verbatim — the terms are recorded alongside
+        the signature so a stored record proves what was actually agreed to.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FormSubmission' }
+      responses:
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, savedAt]
+                properties:
+                  id: { type: string }
+                  savedAt: { type: string, format: date-time }
+        '400':
+          description: Record rejected as incomplete
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+    get:
+      summary: List stored agreements
+      description: Not used by the widget; included so records can be retrieved.
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stored agreements, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StoredAgreement' }
+
+components:
+  schemas:
+    Client:
+      type: object
+      required: [id, name, address, city, postalCode, email, phone, referenceNumber]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        referenceNumber: { type: string }
+        companyName: { type: string }
+
+    AgreementClause:
+      type: object
+      required: [heading, body]
+      properties:
+        heading: { type: string, example: '2. Payment Terms' }
+        body: { type: string }
+
+    FormSubmission:
+      type: object
+      required:
+        - client
+        - agreementTitle
+        - agreementVersion
+        - agreementClauses
+        - signatureDataUrl
+      properties:
+        client: { $ref: '#/components/schemas/Client' }
+        formDate: { type: string }
+        agreementTitle: { type: string }
+        agreementVersion:
+          type: string
+          description: Which revision of the wording was signed.
+        agreementProvider: { type: string }
+        agreementClauses:
+          type: array
+          items: { $ref: '#/components/schemas/AgreementClause' }
+        acknowledgement: { type: string }
+        signatureDataUrl:
+          type: string
+          description: base64 PNG data URL of the signature.
+        savedAt: { type: string, format: date-time }
+
+    StoredAgreement:
+      allOf:
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string }
+        - $ref: '#/components/schemas/FormSubmission'
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
