@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { Client } from '../../core/models/client.model';
 import { ClientSearchComponent } from './steps/client-search/client-search.component';
 import { FormPreviewComponent } from './steps/form-preview/form-preview.component';
@@ -17,6 +18,7 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
     MatStepperModule,
     MatButtonModule,
     MatIconModule,
+    MatCardModule,
     ClientSearchComponent,
     FormPreviewComponent,
     SignatureStepComponent,
@@ -24,6 +26,8 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
   ],
   template: `
     <div class="wizard-container">
+      <mat-card class="wizard-card">
+        <mat-card-content>
       <mat-stepper
         #stepper
         [linear]="true"
@@ -102,13 +106,19 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
           </div>
         </mat-step>
       </mat-stepper>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`
     .wizard-container {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 24px 16px;
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 16px;
+      overflow-x: hidden;
+    }
+    .wizard-card {
+      padding: 8px;
     }
     .step-nav {
       display: flex;
@@ -119,16 +129,22 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
       border-top: 1px solid #eee;
     }
     mat-stepper { background: transparent; }
+    @media (max-width: 600px) {
+      .wizard-container { margin: 8px auto; padding: 0 8px; }
+      .wizard-card { padding: 0; }
+    }
   `],
 })
 export class WizardComponent {
   @ViewChild('stepper') stepper!: MatStepper;
+  @ViewChild(ClientSearchComponent) clientSearchRef!: ClientSearchComponent;
 
   selectedClient: Client | null = null;
   signatureDataUrl: string | null = null;
 
   onClientSelected(client: Client | null): void {
     this.selectedClient = client;
+    this.signatureDataUrl = null;
   }
 
   onSignatureChange(dataUrl: string | null): void {
@@ -139,5 +155,6 @@ export class WizardComponent {
     this.selectedClient = null;
     this.signatureDataUrl = null;
     stepper.reset();
+    this.clientSearchRef?.reset();
   }
 }

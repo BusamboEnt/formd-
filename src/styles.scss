@@ -26,3 +26,8 @@ body {
 .mat-mdc-card { border-radius: 8px !important; }
 
 .mat-step-label { font-size: 13px !important; }
+
+.snack-success .mdc-snackbar__surface {
+  background-color: #2e7d32 !important;
+  color: #fff !important;
+}

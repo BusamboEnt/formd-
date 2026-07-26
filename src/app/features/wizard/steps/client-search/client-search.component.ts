@@ -7,7 +7,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, switchMap, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { Client } from '../../../../core/models/client.model';
 import { ClientService } from '../../../../core/services/client.service';
@@ -38,7 +38,8 @@ import { ClientService } from '../../../../core/services/client.service';
           [matAutocomplete]="auto"
           placeholder="e.g. John Doe or REF-2024-001"
         />
-        <mat-icon matSuffix>search</mat-icon>
+        <mat-spinner diameter="20" matSuffix *ngIf="loading"></mat-spinner>
+        <mat-icon matSuffix *ngIf="!loading">search</mat-icon>
         <mat-autocomplete
           #auto="matAutocomplete"
           [displayWith]="displayFn"
@@ -50,8 +51,11 @@ import { ClientService } from '../../../../core/services/client.service';
               <span class="option-ref">{{ client.referenceNumber }}</span>
             </div>
           </mat-option>
-          <mat-option *ngIf="results.length === 0 && searched" disabled>
-            No clients found
+          <mat-option disabled *ngIf="results.length === 0 && searched && !loading">
+            <div class="empty-state">
+              <mat-icon>search_off</mat-icon>
+              <span>No clients matched your search</span>
+            </div>
           </mat-option>
         </mat-autocomplete>
       </mat-form-field>
@@ -98,6 +102,7 @@ import { ClientService } from '../../../../core/services/client.service';
     .detail-grid { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
     .detail-item { display: flex; align-items: center; gap: 10px; color: #444; }
     .detail-item mat-icon { color: #3f51b5; font-size: 18px; width: 18px; height: 18px; }
+    .empty-state { display: flex; align-items: center; gap: 8px; color: #888; }
   `],
 })
 export class ClientSearchComponent implements OnInit {
@@ -109,11 +114,13 @@ export class ClientSearchComponent implements OnInit {
   results: Client[] = [];
   selectedClient: Client | null = null;
   searched = false;
+  loading = false;
 
   ngOnInit(): void {
     this.searchCtrl.valueChanges.pipe(
       debounceTime(300),
       distinctUntilChanged(),
+      tap(() => { this.loading = true; this.searched = false; }),
       switchMap((value) => {
         if (typeof value === 'string' && value.trim().length >= 2) {
           return this.clientService.searchClients(value.trim());
@@ -122,8 +129,18 @@ export class ClientSearchComponent implements OnInit {
       })
     ).subscribe((clients) => {
       this.results = clients;
+      this.loading = false;
       this.searched = true;
     });
+  }
+
+  reset(): void {
+    this.searchCtrl.setValue('');
+    this.results = [];
+    this.selectedClient = null;
+    this.searched = false;
+    this.loading = false;
+    this.clientSelected.emit(null);
   }
 
   displayFn(client: Client | string): string {

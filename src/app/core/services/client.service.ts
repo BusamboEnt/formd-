@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, finalize, delay } from 'rxjs/operators';
 import { Client } from '../models/client.model';
+import { LoadingService } from './loading.service';
 import { environment } from '../../../environments/environment';
 
 const MOCK_CLIENTS: Client[] = [
@@ -64,8 +65,11 @@ const MOCK_CLIENTS: Client[] = [
 @Injectable({ providedIn: 'root' })
 export class ClientService {
   private http = inject(HttpClient);
+  private loading = inject(LoadingService);
 
   searchClients(query: string): Observable<Client[]> {
+    this.loading.show();
+
     if (environment.useMockData) {
       const lower = query.toLowerCase();
       const results = MOCK_CLIENTS.filter(
@@ -74,14 +78,21 @@ export class ClientService {
           c.referenceNumber.toLowerCase().includes(lower) ||
           (c.companyName?.toLowerCase().includes(lower) ?? false)
       );
-      return of(results);
+      // Brief artificial delay so the loading indicator is visible in mock mode
+      return of(results).pipe(
+        delay(400),
+        finalize(() => this.loading.hide())
+      );
     }
 
     return this.http
       .get<Client[]>(`${environment.apiBaseUrl}/clients`, {
         params: { search: query },
       })
-      .pipe(catchError(() => of([])));
+      .pipe(
+        catchError(() => of([])),
+        finalize(() => this.loading.hide())
+      );
   }
 
   getClientById(id: string): Observable<Client | undefined> {
