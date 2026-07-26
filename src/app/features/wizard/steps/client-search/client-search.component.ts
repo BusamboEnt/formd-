@@ -91,18 +91,18 @@ import { ClientService } from '../../../../core/services/client.service';
   `,
   styles: [`
     .step-content { padding: 8px 0; }
-    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
-    .step-subtitle { margin: 0 0 24px; color: #666; }
+    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+    .step-subtitle { margin: 0 0 24px; color: var(--muted-foreground); }
     .search-field { width: 100%; }
     .option-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .option-name { font-weight: 500; }
-    .option-ref { font-size: 12px; color: #888; }
+    .option-ref { font-size: 12px; color: var(--muted-foreground); }
     .client-card { margin-top: 20px; }
-    .avatar-icon { font-size: 40px; width: 40px; height: 40px; color: #3f51b5; }
+    .avatar-icon { font-size: 40px; width: 40px; height: 40px; color: var(--foreground); }
     .detail-grid { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
-    .detail-item { display: flex; align-items: center; gap: 10px; color: #444; }
-    .detail-item mat-icon { color: #3f51b5; font-size: 18px; width: 18px; height: 18px; }
-    .empty-state { display: flex; align-items: center; gap: 8px; color: #888; }
+    .detail-item { display: flex; align-items: center; gap: 10px; color: var(--foreground); }
+    .detail-item mat-icon { color: var(--muted-foreground); font-size: 18px; width: 18px; height: 18px; }
+    .empty-state { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); }
   `],
 })
 export class ClientSearchComponent implements OnInit {

@@ -126,7 +126,7 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
       align-items: center;
       margin-top: 24px;
       padding-top: 16px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--border);
     }
     mat-stepper { background: transparent; }
     @media (max-width: 600px) {

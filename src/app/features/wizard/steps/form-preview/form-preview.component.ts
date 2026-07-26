@@ -108,18 +108,18 @@ import { Client } from '../../../../core/models/client.model';
   `,
   styles: [`
     .step-content { padding: 8px 0; }
-    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
-    .step-subtitle { margin: 0 0 24px; color: #666; }
+    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+    .step-subtitle { margin: 0 0 24px; color: var(--muted-foreground); }
 
     .form-document {
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 32px 40px;
       background: #fff;
       font-family: 'Times New Roman', Times, serif;
       font-size: 14px;
       line-height: 1.6;
-      color: #222;
+      color: var(--foreground);
       max-width: 760px;
       margin: 0 auto;
     }
@@ -128,15 +128,16 @@ import { Client } from '../../../../core/models/client.model';
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 2px solid #3f51b5;
+      border-bottom: 1px solid var(--border);
       padding-bottom: 16px;
       margin-bottom: 20px;
     }
 
     .doc-logo {
-      font-size: 28px;
+      font-family: Inter, sans-serif;
+      font-size: 20px;
       font-weight: 800;
-      color: #3f51b5;
+      color: var(--foreground);
       letter-spacing: 2px;
     }
 
@@ -160,15 +161,15 @@ import { Client } from '../../../../core/models/client.model';
     .client-table td:first-child { width: 140px; white-space: nowrap; }
 
     .doc-footer {
-      border-top: 1px solid #ccc;
+      border-top: 1px solid var(--border);
       padding-top: 12px;
       margin-top: 24px;
       font-size: 11px;
-      color: #888;
+      color: var(--muted-foreground);
       text-align: center;
     }
 
-    .no-client { color: #999; padding: 24px; text-align: center; }
+    .no-client { color: var(--muted-foreground); padding: 24px; text-align: center; }
   `],
 })
 export class FormPreviewComponent implements OnChanges {

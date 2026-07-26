@@ -36,24 +36,24 @@ import SignaturePad from 'signature_pad';
       gap: 12px;
     }
     .sig-canvas {
-      border: 2px dashed #aaa;
-      border-radius: 8px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
       cursor: crosshair;
       touch-action: none;
-      background: #fff;
+      background: var(--background);
       width: 100%;
       max-width: 600px;
       min-height: 200px;
     }
     .sig-canvas.signing {
-      border: 2px solid #3f51b5;
-      background: #fafafa;
+      border: 1px solid var(--ring);
+      background: var(--muted);
     }
     .sig-hint {
       display: flex;
       align-items: center;
       gap: 6px;
-      color: #888;
+      color: var(--muted-foreground);
       font-size: 13px;
       margin: 4px 0 0;
     }
@@ -116,8 +116,8 @@ export class SignaturePadComponent implements OnInit, OnDestroy {
     const ctx = canvas.getContext('2d')!;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     ctx.save();
-    ctx.font = `${16 * ratio}px Arial`;
-    ctx.fillStyle = 'rgba(180,180,180,0.5)';
+    ctx.font = `${16 * ratio}px Inter, sans-serif`;
+    ctx.fillStyle = 'rgba(113,113,122,0.35)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('Sign here', (canvas.width / ratio) / 2 * ratio, (canvas.height / ratio) / 2 * ratio);

@@ -10,7 +10,7 @@ import { LoadingService } from './core/services/loading.service';
   standalone: true,
   imports: [RouterOutlet, MatToolbarModule, MatProgressBarModule, AsyncPipe],
   template: `
-    <mat-toolbar color="primary" class="app-toolbar">
+    <mat-toolbar class="app-toolbar">
       <span class="toolbar-logo">FormD</span>
       <span class="toolbar-subtitle">Digital Signing System</span>
     </mat-toolbar>
@@ -24,9 +24,13 @@ import { LoadingService } from './core/services/loading.service';
     </main>
   `,
   styles: [`
-    .app-toolbar { display: flex; align-items: baseline; gap: 12px; position: relative; }
-    .toolbar-logo { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
-    .toolbar-subtitle { font-size: 13px; opacity: 0.75; font-weight: 300; }
+    .app-toolbar {
+      display: flex; align-items: baseline; gap: 12px; position: relative;
+      background: var(--background); color: var(--foreground);
+      border-bottom: 1px solid var(--border); height: 56px; padding: 0 24px;
+    }
+    .toolbar-logo { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+    .toolbar-subtitle { font-size: 13px; color: var(--muted-foreground); font-weight: 400; }
     .app-main { padding: 0; }
     .global-loader { position: absolute; z-index: 10; left: 0; right: 0; }
   `],

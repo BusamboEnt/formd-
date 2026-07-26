@@ -37,14 +37,14 @@ import { Client } from '../../../../core/models/client.model';
   `,
   styles: [`
     .step-content { padding: 8px 0; }
-    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
-    .step-subtitle { margin: 0 0 24px; color: #444; }
+    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+    .step-subtitle { margin: 0 0 24px; color: var(--muted-foreground); }
     .sig-card { margin-bottom: 16px; }
     .instruction {
       display: flex;
       align-items: center;
       gap: 8px;
-      color: #555;
+      color: var(--muted-foreground);
       margin-bottom: 16px;
       font-size: 14px;
     }
@@ -55,8 +55,8 @@ import { Client } from '../../../../core/models/client.model';
       font-size: 14px;
       margin: 0;
     }
-    .signed { color: #2e7d32; }
-    .unsigned { color: #b71c1c; }
+    .signed { color: var(--success); }
+    .unsigned { color: var(--destructive); }
   `],
 })
 export class SignatureStepComponent {

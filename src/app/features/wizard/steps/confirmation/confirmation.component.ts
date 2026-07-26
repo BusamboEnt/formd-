@@ -93,12 +93,12 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
   `,
   styles: [`
     .step-content { padding: 8px 0; }
-    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
-    .step-subtitle { margin: 0 0 24px; color: #666; }
+    .step-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+    .step-subtitle { margin: 0 0 24px; color: var(--muted-foreground); }
 
     .preview-wrapper {
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       overflow: hidden;
       margin-bottom: 24px;
     }
@@ -109,20 +109,20 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       font-family: 'Times New Roman', Times, serif;
       font-size: 13px;
       line-height: 1.5;
-      color: #222;
+      color: var(--foreground);
     }
 
     .preview-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #3f51b5;
+      border-bottom: 1px solid var(--border);
       padding-bottom: 12px;
       margin-bottom: 16px;
     }
 
-    .preview-logo { font-size: 22px; font-weight: 800; color: #3f51b5; letter-spacing: 2px; }
-    .preview-ref { font-size: 12px; color: #666; }
+    .preview-logo { font-family: Inter, sans-serif; font-size: 16px; font-weight: 800; color: var(--foreground); letter-spacing: 2px; }
+    .preview-ref { font-size: 12px; color: var(--muted-foreground); }
 
     .preview-title {
       text-align: center;
@@ -135,15 +135,15 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
 
     .preview-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     .preview-table td { padding: 4px 8px; }
-    .preview-table td:first-child { width: 100px; color: #555; }
+    .preview-table td:first-child { width: 100px; color: var(--muted-foreground); }
 
     .preview-terms {
       font-size: 12px;
       font-style: italic;
-      color: #444;
-      border: 1px solid #eee;
+      color: var(--muted-foreground);
+      border: 1px solid var(--border);
       padding: 10px 14px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       margin-bottom: 20px;
     }
 
@@ -151,9 +151,9 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
 
     .sig-block { width: 260px; text-align: center; }
     .sig-image { max-width: 100%; height: 80px; object-fit: contain; }
-    .sig-line { border-bottom: 1px solid #333; margin: 4px 0; }
+    .sig-line { border-bottom: 1px solid var(--foreground); margin: 4px 0; }
     .sig-label { font-size: 12px; margin: 4px 0 2px; }
-    .sig-date { font-size: 11px; color: #666; margin: 0; }
+    .sig-date { font-size: 11px; color: var(--muted-foreground); margin: 0; }
 
     .save-actions {
       display: flex;
@@ -166,7 +166,7 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #b71c1c;
+      color: var(--destructive);
       margin-top: 8px;
     }
 
@@ -174,7 +174,7 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #2e7d32;
+      color: var(--success);
     }
     .success-icon { font-size: 28px; width: 28px; height: 28px; }
 
@@ -182,7 +182,7 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #b71c1c;
+      color: var(--destructive);
     }
   `],
 })
