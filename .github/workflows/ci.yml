@@ -1,8 +1,12 @@
 name: CI
 
+# Push is restricted to main deliberately. Listening on every branch as well as
+# pull_request fires two identical workflow runs for a single push to a branch
+# with an open PR, doubling CI minutes for no extra signal. Branch work is
+# covered by the pull_request trigger; this covers merges into main.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
     branches: [main]
 
