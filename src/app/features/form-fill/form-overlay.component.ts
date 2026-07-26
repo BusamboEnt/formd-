@@ -176,7 +176,14 @@ const EMPTY_PLACEMENTS: PlacedField[] = [];
       font: inherit; font-size: 11px;
     }
     .sign-button:hover { background: rgba(59,130,246,.14); }
-    .sign-button img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    /* width/height rather than max-*, plus min-*:0. A flex item defaults to
+       min-height:auto, which refuses to shrink below the image's intrinsic
+       size — a 512x200 signature then renders below a 99px-tall field box
+       instead of inside it. */
+    .sign-button img {
+      width: 100%; height: 100%; min-width: 0; min-height: 0;
+      object-fit: contain;
+    }
     .sign-button mat-icon { font-size: 15px; width: 15px; height: 15px; }
     .field.filled .sign-button { border-style: solid; background: transparent; }
   `],
