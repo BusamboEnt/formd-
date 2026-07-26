@@ -1,8 +1,10 @@
 import {
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
+  Output,
   ViewChild,
   inject,
 } from '@angular/core';
@@ -14,7 +16,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Client } from '../../../../core/models/client.model';
 import { FormSubmission } from '../../../../core/models/form-submission.model';
-import { FORMD_AGREEMENT, FORMD_SAVE_HANDLER } from '../../../../core/config/formd.config';
+import {
+  FORMD_AGREEMENT,
+  FORMD_SAVE_HANDLER,
+  SaveOutcome,
+} from '../../../../core/config/formd.config';
 
 @Component({
   selector: 'app-confirmation',
@@ -188,6 +194,11 @@ import { FORMD_AGREEMENT, FORMD_SAVE_HANDLER } from '../../../../core/config/for
 export class ConfirmationComponent implements OnChanges {
   @Input() client: Client | null = null;
   @Input() signatureDataUrl: string | null = null;
+  /** Fires once a save attempt resolves, so an embedding host can react. */
+  @Output() saveCompleted = new EventEmitter<{
+    outcome: SaveOutcome;
+    submission: FormSubmission;
+  }>();
   @ViewChild('previewEl') previewEl!: ElementRef<HTMLElement>;
 
   private saveHandler = inject(FORMD_SAVE_HANDLER);
@@ -246,6 +257,7 @@ export class ConfirmationComponent implements OnChanges {
         this.snackBar.open('Save cancelled — nothing was written to disk.', 'OK', { duration: 5000 });
         this.saveCancelled = true;
       }
+      this.saveCompleted.emit({ outcome, submission });
     } catch (err) {
       console.error('Save failed', err);
       this.saveError = true;

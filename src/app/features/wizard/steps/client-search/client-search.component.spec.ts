@@ -11,10 +11,10 @@ const CLIENT: Client = {
   referenceNumber: 'REF-2024-001',
 };
 
-/** Lets each test decide what the client source does. */
+/** Lets each test decide what the client source does, and in what shape. */
 class StubSource implements ClientSource {
-  next: () => Observable<Client[]> = () => of([]);
-  searchClients(): Observable<Client[]> { return this.next(); }
+  next: () => any = () => of([]);
+  searchClients(): any { return this.next(); }
   getClientById(): Observable<Client | undefined> { return of(undefined); }
 }
 
@@ -67,6 +67,36 @@ describe('ClientSearchComponent', () => {
     expect(component.searched).toBeTrue();
     expect(component.searchFailed).toBeFalse();
   }));
+
+  // A plain-JavaScript host embedding the custom element will not construct an
+  // Observable. Requiring one produced "searchClients(...).pipe is not a
+  // function" the first time the element was driven from a non-Angular page.
+  describe('accepts whatever shape the host returns', () => {
+    it('an Observable', fakeAsync(() => {
+      source.next = () => of([CLIENT]);
+      search('john');
+      expect(component.results).toEqual([CLIENT]);
+    }));
+
+    it('a Promise', fakeAsync(() => {
+      source.next = () => Promise.resolve([CLIENT]);
+      search('john');
+      expect(component.results).toEqual([CLIENT]);
+      expect(component.searchFailed).toBeFalse();
+    }));
+
+    it('a plain array, emitted whole rather than element by element', fakeAsync(() => {
+      source.next = () => [CLIENT, { ...CLIENT, id: '2', name: 'Jane' }];
+      search('john');
+      expect(component.results.length).toBe(2);
+    }));
+
+    it('a rejected Promise, surfaced as a failure', fakeAsync(() => {
+      source.next = () => Promise.reject(new Error('network down'));
+      search('john');
+      expect(component.searchFailed).toBeTrue();
+    }));
+  });
 
   describe('when the client service is unreachable', () => {
     beforeEach(() => {

@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { catchError, debounceTime, distinctUntilChanged, switchMap, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { Client } from '../../../../core/models/client.model';
-import { FORMD_CLIENT_SOURCE } from '../../../../core/config/formd.config';
+import { FORMD_CLIENT_SOURCE, toObservable } from '../../../../core/config/formd.config';
 
 @Component({
   selector: 'app-client-search',
@@ -133,7 +133,8 @@ export class ClientSearchComponent implements OnInit {
         if (typeof value === 'string' && value.trim().length >= 2) {
           // Caught here rather than upstream so one failed request does not
           // terminate the stream and leave the field permanently dead.
-          return this.clientService.searchClients(value.trim()).pipe(
+          // Normalized because a host may hand back a Promise or a plain array.
+          return toObservable(this.clientService.searchClients(value.trim())).pipe(
             catchError((err) => {
               console.error('FormD: client search failed', err);
               this.searchFailed = true;

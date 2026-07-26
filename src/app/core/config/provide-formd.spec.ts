@@ -10,6 +10,7 @@ import {
   FORMD_AGREEMENT,
   FORMD_CLIENT_SOURCE,
   FORMD_SAVE_HANDLER,
+  toObservable,
 } from './formd.config';
 import { SERVICE_AGREEMENT } from '../data/service-agreement';
 import { ClientService } from '../services/client.service';
@@ -69,7 +70,7 @@ describe('provideFormd', () => {
         providers: [provideHttpClient(), provideFormd({ clientSource: source })],
       });
 
-      TestBed.inject(FORMD_CLIENT_SOURCE).searchClients('anything').subscribe((r) => {
+      toObservable(TestBed.inject(FORMD_CLIENT_SOURCE).searchClients('anything')).subscribe((r) => {
         expect(r).toEqual([CUSTOM_CLIENT]);
         done();
       });

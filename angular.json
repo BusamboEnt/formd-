@@ -64,6 +64,31 @@
           },
           "defaultConfiguration": "production"
         },
+        "build-element": {
+          "builder": "@angular-devkit/build-angular:browser",
+          "options": {
+            "outputPath": "dist/formd-element",
+            "index": "src/element-demo.html",
+            "main": "src/element.ts",
+            "tsConfig": "tsconfig.element.json",
+            "inlineStyleLanguage": "scss",
+            "polyfills": ["zone.js"],
+            "styles": ["src/styles.scss"],
+            "assets": ["src/assets"],
+            "scripts": [],
+            "outputHashing": "none",
+            "namedChunks": false,
+            "vendorChunk": false,
+            "optimization": true,
+            "budgets": [
+              {
+                "type": "initial",
+                "maximumWarning": "1mb",
+                "maximumError": "2mb"
+              }
+            ]
+          }
+        },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {

@@ -1,0 +1,14 @@
+/* Build config for the framework-agnostic custom element bundle. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/element",
+    "types": []
+  },
+  "files": [
+    "src/element.ts"
+  ],
+  "include": [
+    "src/**/*.d.ts"
+  ]
+}

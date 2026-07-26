@@ -1,10 +1,12 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { Client } from '../../core/models/client.model';
+import { FormSubmission } from '../../core/models/form-submission.model';
+import { SaveOutcome } from '../../core/config/formd.config';
 import { ClientSearchComponent } from './steps/client-search/client-search.component';
 import { FormPreviewComponent } from './steps/form-preview/form-preview.component';
 import { SignatureStepComponent } from './steps/signature-step/signature-step.component';
@@ -99,6 +101,7 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
           <app-confirmation
             [client]="selectedClient"
             [signatureDataUrl]="signatureDataUrl"
+            (saveCompleted)="saveCompleted.emit($event)"
           ></app-confirmation>
           <div class="step-nav">
             <button mat-stroked-button matStepperPrevious>
@@ -142,6 +145,12 @@ import { ConfirmationComponent } from './steps/confirmation/confirmation.compone
 export class WizardComponent {
   @ViewChild('stepper') stepper!: MatStepper;
   @ViewChild(ClientSearchComponent) clientSearchRef!: ClientSearchComponent;
+
+  /** Re-emitted from the confirmation step for embedding hosts. */
+  @Output() saveCompleted = new EventEmitter<{
+    outcome: SaveOutcome;
+    submission: FormSubmission;
+  }>();
 
   selectedClient: Client | null = null;
   signatureDataUrl: string | null = null;
