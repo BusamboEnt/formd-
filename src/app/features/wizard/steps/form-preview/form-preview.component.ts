@@ -1,6 +1,7 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Client } from '../../../../core/models/client.model';
+import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
 
 @Component({
   selector: 'app-form-preview',
@@ -20,13 +21,13 @@ import { Client } from '../../../../core/models/client.model';
           </div>
         </div>
 
-        <h1 class="doc-title">SERVICE AGREEMENT</h1>
+        <h1 class="doc-title">{{ agreement.title }}</h1>
 
         <section class="doc-section">
           <h3>Parties</h3>
           <p>
             This Service Agreement ("Agreement") is entered into as of <strong>{{ today }}</strong>
-            between <strong>FormD Services (Pty) Ltd</strong> ("Service Provider") and:
+            between <strong>{{ agreement.provider }}</strong> ("Service Provider") and:
           </p>
           <table class="client-table">
             <tr>
@@ -52,52 +53,17 @@ import { Client } from '../../../../core/models/client.model';
           </table>
         </section>
 
-        <section class="doc-section">
-          <h3>1. Services</h3>
-          <p>
-            The Service Provider agrees to deliver the services as described in the attached
-            schedule of services, in accordance with the terms and conditions set forth in
-            this Agreement.
-          </p>
-        </section>
-
-        <section class="doc-section">
-          <h3>2. Payment Terms</h3>
-          <p>
-            Client agrees to pay the Service Provider the agreed fees within 30 (thirty)
-            days of invoice. Late payments will incur a penalty of 2% per month on the
-            outstanding balance.
-          </p>
-        </section>
-
-        <section class="doc-section">
-          <h3>3. Term & Termination</h3>
-          <p>
-            This Agreement commences on the date of signing and remains in effect for
-            12 (twelve) months, unless terminated earlier by either party with 30 days'
-            written notice.
-          </p>
-        </section>
-
-        <section class="doc-section">
-          <h3>4. Confidentiality</h3>
-          <p>
-            Both parties agree to keep all confidential information disclosed during the
-            term of this Agreement strictly confidential and not to disclose it to any
-            third party without prior written consent.
-          </p>
-        </section>
-
-        <section class="doc-section">
-          <h3>5. Governing Law</h3>
-          <p>
-            This Agreement shall be governed by and construed in accordance with the laws
-            of the Republic of South Africa.
-          </p>
+        <section class="doc-section" *ngFor="let clause of agreement.clauses">
+          <h3>{{ clause.heading }}</h3>
+          <p>{{ clause.body }}</p>
         </section>
 
         <div class="doc-footer">
-          <p>Reference No: {{ client.referenceNumber }} &nbsp;|&nbsp; Generated: {{ today }}</p>
+          <p>
+            Reference No: {{ client.referenceNumber }} &nbsp;|&nbsp;
+            Generated: {{ today }} &nbsp;|&nbsp;
+            Agreement v{{ agreement.version }}
+          </p>
         </div>
       </div>
 
@@ -174,6 +140,8 @@ import { Client } from '../../../../core/models/client.model';
 })
 export class FormPreviewComponent implements OnChanges {
   @Input() client: Client | null = null;
+
+  readonly agreement = SERVICE_AGREEMENT;
 
   today = new Date().toLocaleDateString('en-ZA', {
     year: 'numeric',

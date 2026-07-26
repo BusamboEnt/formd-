@@ -15,6 +15,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Client } from '../../../../core/models/client.model';
 import { FormSubmission } from '../../../../core/models/form-submission.model';
 import { FormSaveService } from '../../../../core/services/form-save.service';
+import { SERVICE_AGREEMENT } from '../../../../core/data/service-agreement';
 
 @Component({
   selector: 'app-confirmation',
@@ -39,7 +40,7 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
             <span class="preview-logo">FormD</span>
             <span class="preview-ref">{{ client.referenceNumber }} | {{ today }}</span>
           </div>
-          <h2 class="preview-title">SERVICE AGREEMENT</h2>
+          <h2 class="preview-title">{{ agreement.title }}</h2>
           <table class="preview-table">
             <tr><td>Client:</td><td><strong>{{ client.name }}</strong></td></tr>
             <tr *ngIf="client.companyName"><td>Company:</td><td>{{ client.companyName }}</td></tr>
@@ -47,10 +48,7 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
             <tr><td>Email:</td><td>{{ client.email }}</td></tr>
             <tr><td>Phone:</td><td>{{ client.phone }}</td></tr>
           </table>
-          <p class="preview-terms">
-            I, the undersigned, confirm that I have read, understood, and agree to the terms
-            and conditions of this Service Agreement as set forth by FormD Services (Pty) Ltd.
-          </p>
+          <p class="preview-terms">{{ agreement.acknowledgement }}</p>
           <div class="sig-section">
             <div class="sig-block">
               <img [src]="signatureDataUrl" alt="Signature" class="sig-image" />
@@ -78,6 +76,11 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       <div class="save-error" *ngIf="saveError">
         <mat-icon>error_outline</mat-icon>
         <p>Save failed. Please try again or check browser permissions.</p>
+      </div>
+
+      <div class="save-cancelled" *ngIf="saveCancelled">
+        <mat-icon>cancel</mat-icon>
+        <p>Save cancelled — nothing was written. Click Save to try again.</p>
       </div>
 
       <div class="save-success" *ngIf="saved">
@@ -170,6 +173,14 @@ import { FormSaveService } from '../../../../core/services/form-save.service';
       margin-top: 8px;
     }
 
+    .save-cancelled {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted-foreground);
+      margin-top: 8px;
+    }
+
     .save-success {
       display: flex;
       align-items: center;
@@ -194,15 +205,19 @@ export class ConfirmationComponent implements OnChanges {
   private formSave = inject(FormSaveService);
   private snackBar = inject(MatSnackBar);
 
+  readonly agreement = SERVICE_AGREEMENT;
+
   today = '';
   saving = false;
   saved = false;
   saveError = false;
+  saveCancelled = false;
 
   ngOnChanges(): void {
     this.saved = false;
     this.saving = false;
     this.saveError = false;
+    this.saveCancelled = false;
     this.today = new Date().toLocaleDateString('en-ZA', {
       year: 'numeric',
       month: 'long',
@@ -215,20 +230,31 @@ export class ConfirmationComponent implements OnChanges {
 
     this.saving = true;
     this.saved = false;
+    this.saveError = false;
+    this.saveCancelled = false;
 
     const submission: FormSubmission = {
       client: this.client,
       formDate: this.today,
-      agreementTitle: 'Service Agreement',
-      agreementBody: 'Standard service agreement terms accepted.',
+      agreementTitle: this.agreement.title,
+      agreementVersion: this.agreement.version,
+      agreementProvider: this.agreement.provider,
+      agreementClauses: this.agreement.clauses,
+      acknowledgement: this.agreement.acknowledgement,
       signatureDataUrl: this.signatureDataUrl,
       savedAt: new Date().toISOString(),
     };
 
     try {
-      await this.formSave.saveAll(this.previewEl.nativeElement, submission);
-      this.snackBar.open('Agreement saved successfully!', 'OK', { duration: 4000, panelClass: 'snack-success' });
-      this.saved = true;
+      const outcome = await this.formSave.saveAll(this.previewEl.nativeElement, submission);
+      if (outcome === 'saved') {
+        this.snackBar.open('Agreement saved successfully!', 'OK', { duration: 4000, panelClass: 'snack-success' });
+        this.saved = true;
+      } else {
+        // Dismissed dialog — nothing was written, so do not claim otherwise.
+        this.snackBar.open('Save cancelled — nothing was written to disk.', 'OK', { duration: 5000 });
+        this.saveCancelled = true;
+      }
     } catch (err) {
       console.error('Save failed', err);
       this.saveError = true;

@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, NgIf } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { LoadingService } from './core/services/loading.service';
@@ -8,7 +8,7 @@ import { LoadingService } from './core/services/loading.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, MatToolbarModule, MatProgressBarModule, AsyncPipe],
+  imports: [RouterOutlet, MatToolbarModule, MatProgressBarModule, AsyncPipe, NgIf],
   template: `
     <mat-toolbar class="app-toolbar">
       <span class="toolbar-logo">FormD</span>

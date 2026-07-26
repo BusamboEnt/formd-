@@ -2,29 +2,38 @@ import { Injectable } from '@angular/core';
 import html2canvas from 'html2canvas';
 import { FormSubmission } from '../models/form-submission.model';
 
+/** Whether bytes actually reached disk. 'cancelled' means the user dismissed
+ *  the save dialog and nothing was written — it must never be reported as
+ *  success, or a client walks away believing a contract was filed. */
+export type SaveOutcome = 'saved' | 'cancelled';
+
 @Injectable({ providedIn: 'root' })
 export class FormSaveService {
-  async savePng(formElement: HTMLElement, filename: string): Promise<void> {
+  async savePng(formElement: HTMLElement, filename: string): Promise<SaveOutcome> {
     const canvas = await html2canvas(formElement, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
     });
 
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), 'image/png')
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/png')
     );
 
-    await this.saveBlob(blob, `${filename}.png`, 'image/png');
+    if (!blob) {
+      throw new Error('Could not rasterize the agreement to PNG.');
+    }
+
+    return this.saveBlob(blob, `${filename}.png`, 'image/png');
   }
 
-  async saveJson(submission: FormSubmission, filename: string): Promise<void> {
+  async saveJson(submission: FormSubmission, filename: string): Promise<SaveOutcome> {
     const json = JSON.stringify(submission, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
-    await this.saveBlob(blob, `${filename}.json`, 'application/json');
+    return this.saveBlob(blob, `${filename}.json`, 'application/json');
   }
 
-  async saveAll(formElement: HTMLElement, submission: FormSubmission): Promise<void> {
+  async saveAll(formElement: HTMLElement, submission: FormSubmission): Promise<SaveOutcome> {
     const safeName = submission.client.name.replace(/\s+/g, '_');
     const timestamp = new Date()
       .toISOString()
@@ -32,11 +41,14 @@ export class FormSaveService {
       .slice(0, 19);
     const filename = `${safeName}_${timestamp}`;
 
-    await this.savePng(formElement, filename);
-    await this.saveJson(submission, filename);
+    // Bail on cancellation rather than prompting again for the second file.
+    if ((await this.savePng(formElement, filename)) === 'cancelled') {
+      return 'cancelled';
+    }
+    return this.saveJson(submission, filename);
   }
 
-  private async saveBlob(blob: Blob, filename: string, mimeType: string): Promise<void> {
+  private async saveBlob(blob: Blob, filename: string, mimeType: string): Promise<SaveOutcome> {
     if ('showSaveFilePicker' in window) {
       try {
         const ext = filename.split('.').pop()!;
@@ -52,10 +64,13 @@ export class FormSaveService {
         const writable = await handle.createWritable();
         await writable.write(blob);
         await writable.close();
-        return;
+        return 'saved';
       } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        // fall through to anchor download on other errors
+        // A real dismissal is the user's decision — report it as such rather
+        // than quietly writing nothing and claiming the save worked.
+        if (err?.name === 'AbortError') return 'cancelled';
+        // Picker unavailable or blocked (permissions policy, embedded
+        // context) — fall through to the anchor download.
       }
     }
 
@@ -63,7 +78,17 @@ export class FormSaveService {
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = filename;
+    anchor.rel = 'noopener';
+    anchor.style.display = 'none';
+
+    // The anchor must be in the document for the click to reliably start a
+    // download, and the object URL must outlive the browser's read of the
+    // blob. Revoking synchronously aborts downloads that have not started
+    // yet — small blobs (the JSON) win that race, large ones (the PNG) lose.
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return 'saved';
   }
 }
