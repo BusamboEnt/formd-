@@ -142,6 +142,112 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/FormDefinition' }
+    post:
+      summary: Create a form from a hand-authored definition
+      description: |
+        The counterpart to `/forms/import`: that recovers fields a document
+        already carried, this places fields on a document that never had any —
+        a scan, a converted Word file, a PDF only ever meant to be printed.
+
+        Multipart, because it needs both the document and the definition. The
+        document's page geometry and `sha256` are computed from the uploaded
+        bytes and **overwrite whatever the caller sends**: a definition that
+        disagrees with its own PDF is the failure this guards against, so the
+        bytes win.
+
+        Field rectangles are in PDF user space with the origin at the
+        **bottom-left** of the page. A rectangle off the page, on a page the
+        document does not have, or sharing an id with another field is
+        rejected with a message naming the field.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, definition]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The PDF the coordinates are measured against, up to 20 MB.
+                definition:
+                  type: string
+                  description: |
+                    JSON: `title` (required), `version` (optional, defaults to
+                    `1.0.0`) and `fields`.
+      responses:
+        '201':
+          description: Created, with `origin.source` of `authored`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '400':
+          description: No file, unparseable definition, or an invalid field
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '501':
+          description: Conversion required and unavailable, as for /forms/import
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms/{id}/fields:
+    put:
+      summary: Replace the fields on an existing form
+      description: |
+        How a document that imported with nothing on it becomes signable, and
+        how a misread field is corrected — the import heuristic promotes any
+        field whose name contains "sign", so `design_notes` arrives as a
+        signature box and has to be fixable.
+
+        The document is never replaced here. Coordinates only mean something
+        against a fixed page, and signed records cite `documentSha256` to prove
+        which bytes were signed; swapping the PDF under placed fields would
+        invalidate both. Re-import to change the document.
+
+        The version is advanced automatically unless one is supplied, so two
+        different field layouts cannot both claim to be the version people
+        already signed.
+
+        An empty `fields` array is accepted — clearing a document to start over
+        is legitimate, and signing already refuses a form with nothing to sign.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fields]
+              properties:
+                fields:
+                  type: array
+                  items: { $ref: '#/components/schemas/FormField' }
+                version:
+                  type: string
+                  description: Set explicitly, or omit to advance the minor version.
+      responses:
+        '200':
+          description: The updated definition
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '400':
+          description: An invalid field, named in the message
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: No such form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /forms/{id}:
     get:

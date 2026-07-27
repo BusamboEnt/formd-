@@ -58,20 +58,29 @@ export class AppComponent implements AfterViewInit {
   readonly formId: string;
   /** `?api=<url>` points at the backend holding it. */
   readonly apiBaseUrl: string;
+  /** `?design=1` places fields on that document instead of filling it in. */
+  readonly designing: boolean;
 
   constructor() {
     const params = new URLSearchParams(window.location.search);
     this.formId = params.get('form') ?? '';
     this.apiBaseUrl = (params.get('api') ?? '').replace(/\/$/, '');
+    this.designing = params.get('design') === '1';
   }
 
   async ngAfterViewInit(): Promise<void> {
     if (!this.formId) return;
 
-    // Imported dynamically: this flow pulls in pdf.js, the dialog and the
+    // Imported dynamically: these flows pull in pdf.js, the dialog and the
     // overlay, none of which a clause-only session should pay for.
-    const { FormFillComponent } = await import('./features/form-fill/form-fill.component');
-    const ref = this.formHost.createComponent(FormFillComponent);
+    const ref = this.designing
+      ? this.formHost.createComponent(
+          (await import('./features/field-designer/field-designer.component'))
+            .FieldDesignerComponent
+        )
+      : this.formHost.createComponent(
+          (await import('./features/form-fill/form-fill.component')).FormFillComponent
+        );
     ref.setInput('formId', this.formId);
     ref.setInput('apiBaseUrl', this.apiBaseUrl);
   }

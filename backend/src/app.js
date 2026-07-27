@@ -5,6 +5,11 @@ import { Store } from './store.js';
 import { extractFormDefinition } from './import/extract-pdf.js';
 import { normalizeToPdf, ConversionUnavailableError } from './import/normalize.js';
 import { stampPdf } from './import/stamp.js';
+import {
+  validateAuthoredDefinition,
+  validateFields,
+  bumpMinor,
+} from './import/validate-definition.js';
 
 /** Fields without which a stored record cannot prove what was signed. */
 const REQUIRED = ['client', 'agreementTitle', 'agreementVersion', 'agreementClauses', 'signatureDataUrl'];
@@ -78,6 +83,122 @@ export function createApp(store = new Store()) {
 
       store.saveForm(definition, normalized.pdf);
       res.status(201).json(definition);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Creates a form from a definition written by hand.
+   *
+   * The counterpart to /forms/import: that recovers fields a document already
+   * carried, this places fields on a document that never had any — a scan, a
+   * converted Word file, a PDF that was only ever meant to be printed.
+   *
+   * Multipart, because it needs both the document and the definition:
+   *   file        the PDF the coordinates are measured against
+   *   definition  JSON — title, optional version, and the fields
+   *
+   * The document's page geometry and checksum are computed from the uploaded
+   * bytes and overwrite whatever the caller sent. A definition that disagrees
+   * with its own PDF is the failure this is guarding against, so the bytes win.
+   */
+  app.post('/forms', upload.single('file'), async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded. Send multipart field "file".' });
+      }
+
+      let submitted;
+      try {
+        submitted =
+          typeof req.body.definition === 'string'
+            ? JSON.parse(req.body.definition)
+            : req.body.definition;
+      } catch {
+        return res.status(400).json({ error: 'definition must be valid JSON' });
+      }
+      if (!submitted) {
+        return res.status(400).json({ error: 'Send the definition as multipart field "definition".' });
+      }
+
+      let normalized;
+      try {
+        normalized = await normalizeToPdf(req.file.buffer, req.file.originalname);
+      } catch (err) {
+        if (err instanceof ConversionUnavailableError) {
+          return res.status(501).json({ error: err.message });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+
+      // Reusing the extractor purely for the document metadata — page sizes
+      // and checksum measured off the real bytes. Any fields it happens to
+      // find are discarded; the caller is authoring these by hand.
+      const base = await extractFormDefinition(normalized.pdf, {
+        filename: req.file.originalname,
+      });
+
+      const invalid = validateAuthoredDefinition(submitted, base.document.pages);
+      if (invalid) return res.status(400).json({ error: invalid });
+
+      const definition = {
+        id: base.id,
+        title: submitted.title,
+        version: submitted.version ?? '1.0.0',
+        document: { ...base.document, url: `/forms/${base.id}/document` },
+        fields: submitted.fields ?? [],
+        origin: {
+          source: 'authored',
+          originalFilename: req.file.originalname,
+          importedAt: new Date().toISOString(),
+        },
+      };
+
+      store.saveForm(definition, normalized.pdf);
+      res.status(201).json(definition);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Replaces the fields on an existing form.
+   *
+   * This is how a document that imported with nothing on it becomes signable,
+   * and how a misread field gets corrected — the "sign" heuristic promotes any
+   * field whose name contains it, so `design_notes` arrives as a signature box
+   * and has to be fixable.
+   *
+   * The document itself is never replaced here. Coordinates are only meaningful
+   * against a fixed page, and signed records cite documentSha256 to prove which
+   * bytes were signed; swapping the PDF under placed fields would invalidate
+   * both. Re-import to change the document.
+   */
+  app.put('/forms/:id/fields', (req, res, next) => {
+    try {
+      const definition = store.getForm(req.params.id);
+      if (!definition) return res.status(404).json({ error: 'form not found' });
+
+      const { fields, version } = req.body ?? {};
+      const invalid = validateFields(fields, definition.document.pages);
+      if (invalid) return res.status(400).json({ error: invalid });
+
+      if (version !== undefined && typeof version !== 'string') {
+        return res.status(400).json({ error: 'version must be a string' });
+      }
+
+      const updated = {
+        ...definition,
+        fields,
+        // Signed records cite formVersion. Leaving it alone would let two
+        // different field layouts both claim to be the version people signed.
+        version: version ?? bumpMinor(definition.version),
+        origin: { ...definition.origin, source: 'authored' },
+      };
+
+      store.updateForm(updated);
+      res.json(updated);
     } catch (err) {
       next(err);
     }

@@ -137,6 +137,21 @@ export class Store {
     return definition;
   }
 
+  /**
+   * Replaces a stored definition, keeping its document.
+   *
+   * The PDF is deliberately not touched. Field coordinates only mean anything
+   * against a fixed page, so editing fields must never be able to move the
+   * document out from under them — and the definition's documentSha256, which
+   * signed records cite, has to keep matching the bytes on disk.
+   */
+  updateForm(definition) {
+    const result = this.db
+      .prepare('UPDATE forms SET definition = ? WHERE id = ?')
+      .run(JSON.stringify(definition), definition.id);
+    return result.changes > 0 ? definition : undefined;
+  }
+
   getForm(id) {
     const row = this.db.prepare('SELECT definition FROM forms WHERE id = ?').get(id);
     return row ? JSON.parse(row.definition) : undefined;

@@ -65,6 +65,11 @@ export class FormdElementComponent implements OnChanges {
   @Input() formId?: string;
   /** Backend holding the form, implementing backend/openapi.yaml. */
   @Input() apiBaseUrl = '';
+  /**
+   * Place fields on the form rather than filling it in. Authoring, not
+   * signing — an integrator exposes this to their own staff, not to clients.
+   */
+  @Input() design = false;
 
   /** Emitted as the `saved` DOM event once a record is persisted. */
   @Output() saved = new EventEmitter<FormSubmission>();
@@ -77,7 +82,7 @@ export class FormdElementComponent implements OnChanges {
   private cdr = inject(ChangeDetectorRef);
 
   ready = false;
-  private mountedFormId?: string;
+  private mounted?: string;
 
   ngOnChanges(): void {
     if (this.agreement) this.runtime.agreement = this.agreement;
@@ -88,30 +93,39 @@ export class FormdElementComponent implements OnChanges {
 
     // Drop and re-create so freshly injected tokens see the new config.
     this.ready = false;
-    this.mountedFormId = undefined;
+    this.mounted = undefined;
     this.cdr.detectChanges();
     this.ready = true;
     this.cdr.detectChanges();
 
-    void this.mountFormFill();
+    void this.mountDocumentFlow();
   }
 
   /**
    * Creates the document-backed flow on demand.
    *
-   * Imported dynamically for the same reason the app shell does it: this pulls
+   * Imported dynamically for the same reason the app shell does it: these pull
    * in pdf.js and the overlay, which a host only presenting the clause
    * agreement should not download.
    */
-  private async mountFormFill(): Promise<void> {
+  private async mountDocumentFlow(): Promise<void> {
     if (!this.formId || !this.formHost) return;
-    if (this.mountedFormId === this.formId) return;
 
-    this.mountedFormId = this.formId;
+    // Keyed on the mode too: switching between placing fields and filling them
+    // in has to swap the component, not keep the one already mounted.
+    const key = `${this.design ? 'design' : 'fill'}:${this.formId}`;
+    if (this.mounted === key) return;
+    this.mounted = key;
     this.formHost.clear();
 
-    const { FormFillComponent } = await import('../features/form-fill/form-fill.component');
-    const ref = this.formHost.createComponent(FormFillComponent);
+    const ref = this.design
+      ? this.formHost.createComponent(
+          (await import('../features/field-designer/field-designer.component'))
+            .FieldDesignerComponent
+        )
+      : this.formHost.createComponent(
+          (await import('../features/form-fill/form-fill.component')).FormFillComponent
+        );
     ref.setInput('formId', this.formId);
     ref.setInput('apiBaseUrl', this.apiBaseUrl);
     this.cdr.markForCheck();

@@ -53,8 +53,12 @@ import { FormOverlayComponent } from './form-overlay.component';
           <p class="error" *ngIf="loadError">{{ loadError }}</p>
 
           <!-- Placed by the import engine, or by hand for a document that
-               arrived without field definitions. -->
-          <p class="note" *ngIf="definition?.origin?.note">{{ definition!.origin.note }}</p>
+               arrived without field definitions. The note describes work that
+               has to be doable from here, so it carries the way to do it. -->
+          <p class="note" *ngIf="definition?.origin?.note">
+            {{ definition!.origin.note }}
+            <a class="note-action" [href]="designUrl" *ngIf="designUrl">Place fields on it</a>
+          </p>
 
           <app-form-overlay
             *ngIf="definition"
@@ -88,6 +92,7 @@ import { FormOverlayComponent } from './form-overlay.component';
       background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
       padding: 10px 14px; font-size: 13px; color: var(--muted-foreground); margin: 0 0 16px;
     }
+    .note-action { color: var(--foreground); font-weight: 500; margin-left: 6px; }
     .signed {
       display: flex; align-items: center; gap: 8px; margin-top: 20px;
       color: var(--success); font-size: 14px;
@@ -110,6 +115,21 @@ export class FormFillComponent implements OnInit {
   saving = false;
   loadError = '';
   signedUrl = '';
+
+  /**
+   * Where to go to place fields on this document.
+   *
+   * Only offered in the app shell. An embedded `<formd-wizard>` sits in
+   * someone else's page, where a link to our own URL layout would be wrong —
+   * that host sets `design` on the element instead.
+   */
+  get designUrl(): string {
+    if (!this.definition || typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('form')) return '';
+    params.set('design', '1');
+    return `?${params}`;
+  }
 
   get originLabel(): string {
     const source = this.definition?.origin?.source;

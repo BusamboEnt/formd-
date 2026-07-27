@@ -57,8 +57,53 @@ How much you get back depends entirely on the source:
 Text fields whose names contain "sign" or "initial" are promoted to signature
 and initials fields. It is a heuristic and it can misfire — a field named
 `design_notes` contains "sign" — but without it an imported contract offers its
-signature line as somewhere to type a name. Correct anything it gets wrong in
-the definition.
+signature line as somewhere to type a name. Correct anything it gets wrong with
+`PUT /forms/:id/fields`, below.
+
+## Placing fields by hand
+
+Import only recovers fields a document already had. For everything else —
+scans, converted Word files, anything that was only ever meant to be printed —
+fields are placed afterwards.
+
+Two ways in. Replace the fields on a form that already exists:
+
+```bash
+curl -X PUT http://localhost:8080/forms/$ID/fields \
+  -H 'content-type: application/json' \
+  -d '{"fields":[
+        {"id":"client.name","kind":"text","label":"Client Name",
+         "rect":{"page":0,"x":56,"y":652,"width":240,"height":20},"bindTo":"name"},
+        {"id":"client.signature","kind":"signature","label":"Client Signature",
+         "rect":{"page":0,"x":56,"y":330,"width":240,"height":66}}
+      ]}'
+```
+
+Or create one from a document and a definition together:
+
+```bash
+curl -F file=@scanned-contract.pdf \
+     -F 'definition={"title":"Scanned Contract","fields":[...]}' \
+     http://localhost:8080/forms
+```
+
+**Coordinates are in PDF user space, and the origin is the bottom-left of the
+page** — `y` is measured up from the bottom, not down from the top. Getting it
+backwards mirrors every field onto the wrong half of the document, which looks
+plausible rather than broken. A rectangle off the page, on a page the document
+does not have, or sharing an id with another field is rejected with a message
+naming the field.
+
+Rather than working those numbers out, draw them. The app serves a designer at
+`?form=<id>&design=1` — drag on the rendered page to place a field, click one
+to change its type, key, label or client binding, then save. It writes through
+the same endpoint.
+
+The document is never replaced by either route. Field coordinates only mean
+something against a fixed page, and signed records cite `documentSha256` to
+prove which bytes were signed; re-import to change the document. Saving fields
+advances the form's version, so two different layouts cannot both claim to be
+the version people already signed.
 
 A `.docx` is converted **once**, at import, and that PDF becomes the document of
 record. Field coordinates only mean something against a fixed layout, and a Word
