@@ -39,13 +39,29 @@ export class PdfRenderService {
    * reason the fonts are: this runs on machines that may be offline or behind
    * a firewall, and a missing worker means nothing renders at all.
    * angular.json copies it out of pdfjs-dist at build time.
+   *
+   * The path is overridable because `assets/…` is only correct for a host
+   * serving this from its root. Anything else — a widget mounted under a
+   * sub-path, or a single-file build with the worker inlined as a blob — needs
+   * to say where the worker actually is:
+   *
+   *   window.FormD = { ...window.FormD, pdfWorkerSrc: '/static/pdf.worker.min.mjs' };
+   *
+   * Read off the global rather than injected so a plain-HTML host can set it
+   * without touching Angular DI, matching how the rest of FormD's element
+   * configuration works.
    */
   private lib(): Promise<PdfJs> {
     this.pdfjs ??= import('pdfjs-dist').then((mod) => {
-      mod.GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
+      mod.GlobalWorkerOptions.workerSrc = this.workerSrc();
       return mod;
     });
     return this.pdfjs;
+  }
+
+  private workerSrc(): string {
+    const configured = (globalThis as { FormD?: { pdfWorkerSrc?: string } }).FormD?.pdfWorkerSrc;
+    return configured || 'assets/pdf.worker.min.mjs';
   }
 
   async load(url: string): Promise<PDFDocumentProxy> {

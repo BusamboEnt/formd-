@@ -31,7 +31,16 @@ import {
  *   el.clientSource = FormD.createHttpClientSource({ baseUrl: 'https://api.example.com' });
  *   el.saveHandler  = FormD.createHttpSaveHandler({ baseUrl: 'https://api.example.com' });
  */
-(window as any).FormD = { createHttpClientSource, createHttpSaveHandler };
+/**
+ * Merged rather than assigned. A host configures FormD by setting properties
+ * on this global *before* the bundle loads — pdfWorkerSrc is read that way —
+ * and replacing the object wholesale silently discarded all of it.
+ */
+(window as any).FormD = {
+  ...(window as any).FormD,
+  createHttpClientSource,
+  createHttpSaveHandler,
+};
 
 (async () => {
   const app = await createApplication({
