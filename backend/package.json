@@ -1,0 +1,22 @@
+{
+  "name": "formd-reference-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reference implementation of the FormD backend contract.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "seed": "node src/seed.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "multer": "^2.2.0",
+    "pdf-lib": "^1.17.1"
+  }
+}

@@ -1,0 +1,482 @@
+openapi: 3.0.3
+info:
+  title: FormD Backend Contract
+  version: 1.0.0
+  description: |
+    The contract a backend must satisfy for the FormD signing widget to talk to
+    it. The reference implementation in this directory is one way to satisfy it;
+    any service exposing these routes works.
+
+    Two of the three routes back the widget's `clientSource`. The third receives
+    signed records from its `saveHandler`. A backend may implement only the
+    client routes and let the widget keep saving locally.
+
+servers:
+  - url: http://localhost:8080
+    description: Local
+  - url: https://{app}.up.railway.app
+    description: Railway
+    variables:
+      app: { default: your-formd-backend }
+
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /clients:
+    get:
+      summary: Search clients
+      description: |
+        Backs `clientSource.searchClients`. Matches on name, reference number
+        and company name. Returns an empty array when nothing matches — an
+        empty result means "no such client", never "the lookup failed". Faults
+        must be signalled with a 5xx so the widget can distinguish them.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+          description: Free-text term. Omitted or empty returns all clients.
+      responses:
+        '200':
+          description: Matching clients, possibly none
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Client' }
+        '500':
+          description: Lookup failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /clients/{id}:
+    get:
+      summary: Fetch one client
+      description: Backs `clientSource.getClientById`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The client
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '404':
+          description: No such client. Distinct from a fault.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms/import:
+    post:
+      summary: Digitise an uploaded document into a form definition
+      description: |
+        Accepts a PDF or .docx and returns a `FormDefinition` whose fields are
+        positioned against the document.
+
+        A PDF carrying an AcroForm needs no further work: its own field
+        rectangles are extracted, so nothing is placed by hand. Anything else
+        — a document that was never an interactive form, or a converted .docx —
+        imports successfully with **zero fields** and an `origin.note`
+        explaining that fields must be placed manually. That is a normal
+        outcome to be reported, not an error.
+
+        A .docx is converted to PDF once at import, and that PDF becomes the
+        document of record: field coordinates only mean something against a
+        fixed layout, and a Word file reflows.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: A .pdf or .docx, up to 20 MB.
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '400':
+          description: No file sent, or an unsupported file type
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '501':
+          description: |
+            The document requires conversion and this deployment cannot perform
+            it (LibreOffice absent). The request was valid; the server cannot
+            serve it. The message names the fix.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms:
+    get:
+      summary: List imported forms
+      responses:
+        '200':
+          description: Form definitions, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FormDefinition' }
+    post:
+      summary: Create a form from a hand-authored definition
+      description: |
+        The counterpart to `/forms/import`: that recovers fields a document
+        already carried, this places fields on a document that never had any —
+        a scan, a converted Word file, a PDF only ever meant to be printed.
+
+        Multipart, because it needs both the document and the definition. The
+        document's page geometry and `sha256` are computed from the uploaded
+        bytes and **overwrite whatever the caller sends**: a definition that
+        disagrees with its own PDF is the failure this guards against, so the
+        bytes win.
+
+        Field rectangles are in PDF user space with the origin at the
+        **bottom-left** of the page. A rectangle off the page, on a page the
+        document does not have, or sharing an id with another field is
+        rejected with a message naming the field.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, definition]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The PDF the coordinates are measured against, up to 20 MB.
+                definition:
+                  type: string
+                  description: |
+                    JSON: `title` (required), `version` (optional, defaults to
+                    `1.0.0`) and `fields`.
+      responses:
+        '201':
+          description: Created, with `origin.source` of `authored`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '400':
+          description: No file, unparseable definition, or an invalid field
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '501':
+          description: Conversion required and unavailable, as for /forms/import
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms/{id}/fields:
+    put:
+      summary: Replace the fields on an existing form
+      description: |
+        How a document that imported with nothing on it becomes signable, and
+        how a misread field is corrected — the import heuristic promotes any
+        field whose name contains "sign", so `design_notes` arrives as a
+        signature box and has to be fixable.
+
+        The document is never replaced here. Coordinates only mean something
+        against a fixed page, and signed records cite `documentSha256` to prove
+        which bytes were signed; swapping the PDF under placed fields would
+        invalidate both. Re-import to change the document.
+
+        The version is advanced automatically unless one is supplied, so two
+        different field layouts cannot both claim to be the version people
+        already signed.
+
+        An empty `fields` array is accepted — clearing a document to start over
+        is legitimate, and signing already refuses a form with nothing to sign.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fields]
+              properties:
+                fields:
+                  type: array
+                  items: { $ref: '#/components/schemas/FormField' }
+                version:
+                  type: string
+                  description: Set explicitly, or omit to advance the minor version.
+      responses:
+        '200':
+          description: The updated definition
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '400':
+          description: An invalid field, named in the message
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: No such form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms/{id}:
+    get:
+      summary: Fetch one form definition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The definition
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FormDefinition' }
+        '404':
+          description: No such form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /forms/{id}/document:
+    get:
+      summary: Fetch the pinned PDF a form's fields are positioned against
+      description: |
+        The exact bytes the coordinates refer to. Served rather than linked
+        elsewhere because a document swapped underneath a definition would move
+        every field silently; `document.sha256` lets a client detect that.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          description: No such form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /agreements:
+    post:
+      summary: Store a signed agreement
+      description: |
+        Backs `saveHandler.save`. The body is the complete record: the client,
+        the full agreement text that was presented, the agreement version, and
+        the signature. It is stored verbatim — the terms are recorded alongside
+        the signature so a stored record proves what was actually agreed to.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FormSubmission' }
+      responses:
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, savedAt]
+                properties:
+                  id: { type: string }
+                  savedAt: { type: string, format: date-time }
+        '400':
+          description: Record rejected as incomplete
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+    get:
+      summary: List stored agreements
+      description: Not used by the widget; included so records can be retrieved.
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stored agreements, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StoredAgreement' }
+
+components:
+  schemas:
+    Client:
+      type: object
+      required: [id, name, address, city, postalCode, email, phone, referenceNumber]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        referenceNumber: { type: string }
+        companyName: { type: string }
+
+    AgreementClause:
+      type: object
+      required: [heading, body]
+      properties:
+        heading: { type: string, example: '2. Payment Terms' }
+        body: { type: string }
+
+    FormSubmission:
+      type: object
+      required:
+        - client
+        - agreementTitle
+        - agreementVersion
+        - agreementClauses
+        - signatureDataUrl
+      properties:
+        client: { $ref: '#/components/schemas/Client' }
+        formDate: { type: string }
+        agreementTitle: { type: string }
+        agreementVersion:
+          type: string
+          description: Which revision of the wording was signed.
+        agreementProvider: { type: string }
+        agreementClauses:
+          type: array
+          items: { $ref: '#/components/schemas/AgreementClause' }
+        acknowledgement: { type: string }
+        signatureDataUrl:
+          type: string
+          description: base64 PNG data URL of the signature.
+        savedAt: { type: string, format: date-time }
+
+    StoredAgreement:
+      allOf:
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string }
+        - $ref: '#/components/schemas/FormSubmission'
+
+    FieldRect:
+      type: object
+      required: [page, x, y, width, height]
+      description: |
+        PDF user space (1/72"). **The origin is the bottom-left of the page**,
+        which is the PDF convention — a renderer working top-down converts once,
+        at the edge.
+      properties:
+        page: { type: integer, description: 0-based page index }
+        x: { type: number }
+        y: { type: number, description: Distance from the bottom of the page }
+        width: { type: number }
+        height: { type: number }
+
+    FormField:
+      type: object
+      required: [id, kind, label, rect]
+      properties:
+        id:
+          type: string
+          description: |
+            Stable key a captured value is filed under. Renaming it orphans
+            previously collected data — an identifier, not a label.
+        kind:
+          type: string
+          enum: [text, multiline, date, checkbox, signature, initials]
+        label: { type: string }
+        rect: { $ref: '#/components/schemas/FieldRect' }
+        required: { type: boolean }
+        bindTo:
+          type: string
+          description: Pre-fill from the client record, e.g. `name`.
+        maxLength: { type: integer }
+        defaultValue: { type: string }
+
+    FormDefinition:
+      type: object
+      required: [id, title, version, document, fields, origin]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        version: { type: string }
+        document:
+          type: object
+          required: [url, filename, contentType, pages]
+          properties:
+            url: { type: string, example: /forms/abc123/document }
+            filename: { type: string }
+            contentType: { type: string, enum: [application/pdf] }
+            pages:
+              type: array
+              items:
+                type: object
+                properties:
+                  width: { type: number }
+                  height: { type: number }
+            sha256:
+              type: string
+              description: |
+                SHA-256 of the PDF bytes. A signed record cites this, so a
+                document swapped after signing is detectable rather than silent.
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/FormField' }
+        origin:
+          type: object
+          required: [source]
+          description: |
+            How the definition came to exist. Kept because it predicts field
+            quality: `acroform` fields carry the original author's coordinates;
+            `converted` and `authored` ones were placed by us.
+          properties:
+            source: { type: string, enum: [acroform, converted, authored] }
+            originalFilename: { type: string }
+            importedAt: { type: string, format: date-time }
+            note:
+              type: string
+              description: Set when the source had no field definitions to extract.
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }

@@ -1,0 +1,92 @@
+name: CI
+
+# Push is restricted to main deliberately. Listening on every branch as well as
+# pull_request fires two identical workflow runs for a single push to a branch
+# with an open PR, doubling CI minutes for no extra signal. Branch work is
+# covered by the pull_request trigger; this covers merges into main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (build + specs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Material was originally added with --legacy-peer-deps, but that flag is
+      # not needed here: `npm ci` installs the lockfile verbatim rather than
+      # re-resolving peers. Verified against a clean checkout. Keeping plain
+      # `npm ci` means lockfile drift fails the build instead of being papered
+      # over.
+      - name: Install
+        run: npm ci
+
+      # karma.conf.js defines ChromeHeadlessNoSandbox but does not hardcode a
+      # binary path, so CHROME_BIN has to be resolved from whatever the runner
+      # image ships. Resolved rather than hardcoded so an image change that
+      # swaps google-chrome for chromium does not silently break the run.
+      - name: Locate Chrome
+        run: |
+          BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          if [ -z "$BIN" ]; then
+            echo "No Chrome or Chromium found on the runner." >&2
+            exit 1
+          fi
+          echo "Using $BIN"
+          echo "CHROME_BIN=$BIN" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        run: npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox
+
+      # Production config, so the budgets in angular.json are enforced.
+      - name: Build app
+        run: npx ng build
+
+      - name: Build custom element
+        run: npx ng run formd-app:build-element
+
+      - name: Upload build output
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  backend:
+    name: Backend (reference implementation)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # better-sqlite3 is a native module; ubuntu-latest already carries the
+      # build-essential toolchain it needs.
+      - name: Install
+        run: npm ci
+
+      - name: Tests
+        run: npm test

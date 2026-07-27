@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>FormD — custom element demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #fafafa; }
+    .banner { padding: 12px 20px; background: #18181b; color: #fafafa; font-size: 13px; }
+    .banner code { background: rgba(255,255,255,.12); padding: 1px 5px; border-radius: 4px; }
+    #log {
+      font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap;
+      padding: 12px 20px; border-top: 1px solid #e4e4e7; background: #fff; color: #52525b;
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <code>&lt;formd-wizard&gt;</code> from plain HTML — custom agreement, wired to a
+    backend via <code>FormD.createHttpClientSource</code>. No Angular in this page.
+    Pass <code>?api=&lt;url&gt;</code> to retarget, or <code>?api=none</code> for inline objects.
+    Pass <code>?form=&lt;id&gt;</code> to fill and sign an imported document instead of
+    the clause agreement.
+  </div>
+
+  <formd-wizard id="wizard"></formd-wizard>
+
+  <div id="log">waiting…</div>
+
+  <script>
+    // Configuration is set as DOM *properties*, not attributes: these are
+    // objects and functions, which attributes cannot carry.
+    const log = (m) => document.getElementById('log').textContent = m;
+
+    customElements.whenDefined('formd-wizard').then(() => {
+      const el = document.getElementById('wizard');
+
+      // Branding and copy are partial: unset fields keep their defaults.
+      el.branding = { name: 'ACME', tagline: 'Supply Contracts' };
+      el.copy = {
+        steps: { findClient: 'Customer', reviewForm: 'Terms' },
+        nav: { next: 'Continue' },
+        clientSearch: { title: 'Find Customer', placeholder: 'e.g. Ada or ACME-001' },
+        confirmation: { saveAction: 'Submit Agreement' },
+      };
+
+      el.agreement = {
+        title: 'SUPPLY AGREEMENT',
+        version: '2.1.0',
+        provider: 'Acme Trading Co',
+        clauses: [
+          { heading: '1. Goods', body: 'Acme supplies the goods listed in the order schedule.' },
+          { heading: '2. Delivery', body: 'Delivery occurs within 14 days of order confirmation.' },
+        ],
+        acknowledgement: 'I confirm I have read and accept the supply terms above.',
+      };
+
+      // Point at a backend implementing backend/openapi.yaml. Pass
+      // ?api=<url> to target a deployed instance instead of a local one.
+      const api = new URLSearchParams(location.search).get('api') || 'http://localhost:8080';
+
+      if (api === 'none') {
+        // Fallback: inline objects, showing the seam without a backend.
+        const CLIENTS = [
+          { id: 'a1', name: 'Ada Lovelace', address: '1 Analytical Way', city: 'London',
+            postalCode: 'EC1', email: 'ada@example.com', phone: '+44 20 0000 0001',
+            referenceNumber: 'ACME-001', companyName: 'Analytical Engines Ltd' },
+        ];
+        el.clientSource = {
+          searchClients: (q) => Promise.resolve(
+            CLIENTS.filter(c => c.name.toLowerCase().includes(q.toLowerCase()))),
+          getClientById: (id) => Promise.resolve(CLIENTS.find(c => c.id === id)),
+        };
+        el.saveHandler = { save: () => Promise.resolve('saved') };
+      } else {
+        el.clientSource = FormD.createHttpClientSource({ baseUrl: api });
+        el.saveHandler  = FormD.createHttpSaveHandler({ baseUrl: api });
+      }
+
+      el.addEventListener('saved', (e) => log('saved event for ' + e.detail.client.name));
+      el.addEventListener('cancelled', () => log('cancelled event — nothing written'));
+
+      // An imported document takes precedence over the clause agreement above:
+      // the element renders that PDF and signs it in place. apiBaseUrl is
+      // separate from clientSource because the document is fetched by the
+      // element itself, not through the configured source.
+      const formId = new URLSearchParams(location.search).get('form');
+      if (formId && api !== 'none') {
+        el.apiBaseUrl = api;
+        el.formId = formId;
+        log('configured against ' + api + ' — filling form ' + formId);
+        return;
+      }
+
+      log('configured against ' + api);
+    });
+  </script>
+</body>
+</html>
